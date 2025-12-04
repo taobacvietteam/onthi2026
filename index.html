@@ -3,628 +3,1432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Ôn Thi TN THPT 2026</title>
-    <!-- Tailwind CSS -->
+    <title>Hệ Thống Ôn Thi THPT 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://meet.jit.si/external_api.js"></script>
     
     <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .hidden-section { display: none !important; }
         
-        /* Video & Exam Modal Styles */
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.95); }
-        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; background: #000; }
-        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .video-blocker { position: absolute; top: 0; left: 0; width: 100%; height: 85%; z-index: 10; background: transparent; cursor: pointer; }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
         
-        /* Exam Iframe */
-        .exam-frame { width: 100%; height: 80vh; border: none; background: white; }
+        /* Game Canvas & Elements */
+        canvas { background: #222; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: block; margin: 0 auto; }
+        
+        .memory-card { perspective: 1000px; cursor: pointer; }
+        .memory-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
+        .memory-card.flipped .memory-card-inner { transform: rotateY(180deg); }
+        .memory-front, .memory-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+        .memory-front { background-color: #4f46e5; color: white; transform: rotateY(180deg); }
+        .memory-back { background-color: #e5e7eb; color: #374151; }
+
+        /* Chat Bubble Reactions */
+        .reaction-bar { display: none; position: absolute; bottom: -30px; right: 0; background: white; padding: 2px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
+        .chat-bubble:hover .reaction-bar { display: flex; }
+
+        /* Disable interaction for strict video */
+        .no-interaction { pointer-events: none; }
     </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-800">
+<body class="bg-gray-50 font-sans text-gray-800 h-screen flex flex-col overflow-hidden">
 
-    <div id="toast-container" class="fixed top-5 right-5 z-50"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
 
-    <!-- MODAL XEM VIDEO -->
-    <div id="video-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-        <div class="bg-white w-full max-w-5xl rounded-lg overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
-            <div class="p-3 bg-gray-900 text-white flex justify-between items-center">
-                <h3 id="modal-video-title" class="font-bold text-lg truncate pr-4">Bài học</h3>
-                <button onclick="closeVideoModal()" class="text-gray-400 hover:text-white px-2"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <div class="relative bg-black flex-1 flex flex-col justify-center" id="fullscreen-container">
-                <div class="video-container">
-                    <div id="youtube-player"></div>
-                    <div class="video-blocker" onclick="togglePlayPause()" title="Bấm để Phát/Dừng"></div>
-                </div>
-                <div id="mute-warning" class="hidden absolute inset-0 bg-black bg-opacity-90 z-20 flex flex-col items-center justify-center text-white text-center p-4">
-                    <i class="fas fa-volume-mute text-5xl text-red-500 mb-4"></i>
-                    <h2 class="text-2xl font-bold">Vui lòng bật tiếng!</h2>
-                    <p>Hệ thống yêu cầu bật âm thanh để ghi nhận tiến độ.</p>
-                    <button onclick="unmuteVideo()" class="mt-4 px-6 py-2 bg-blue-600 rounded hover:bg-blue-700 font-bold">Bật tiếng ngay</button>
-                </div>
-            </div>
-            <div class="bg-gray-800 text-white p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center space-x-4">
-                        <button id="btn-play-pause" onclick="togglePlayPause()" class="hover:text-blue-400 w-8"><i class="fas fa-play"></i></button>
-                        <span class="text-sm font-mono" id="time-display">00:00 / 00:00</span>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-xs text-gray-400 mr-2">Đã xem: <span id="max-watched-display" class="text-green-400">0%</span></span>
-                        <button onclick="toggleFullscreen()" class="hover:text-blue-400"><i class="fas fa-expand"></i> Zoom</button>
-                    </div>
-                </div>
-                <div class="w-full bg-gray-600 h-2 rounded-full relative">
-                    <div id="video-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300 relative z-10" style="width: 0%"></div>
-                    <div id="max-watched-marker" class="absolute top-0 left-0 h-2 bg-green-500 opacity-50 z-0" style="width: 0%"></div>
-                </div>
-                <p class="text-xs text-gray-500 mt-2 text-center italic">Bạn có thể tua lại phần màu xanh lá (phần đã học).</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL THI ONLINE -->
-    <div id="exam-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-        <div class="bg-white w-full max-w-6xl h-[90vh] rounded-lg overflow-hidden shadow-2xl flex flex-col">
-            <div class="p-3 bg-blue-900 text-white flex justify-between items-center">
-                <div class="flex items-center">
-                    <i class="fas fa-edit mr-2"></i>
-                    <h3 id="exam-modal-title" class="font-bold text-lg">Làm Bài Thi</h3>
-                </div>
-                <button onclick="closeExamModal()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm">Kết thúc bài thi</button>
-            </div>
-            <div class="flex-1 bg-gray-100 relative">
-                <div id="exam-loading" class="absolute inset-0 flex items-center justify-center text-gray-500">
-                    <i class="fas fa-spinner fa-spin mr-2"></i> Đang tải đề thi...
-                </div>
-                <iframe id="exam-iframe" class="exam-frame" src="" onload="document.getElementById('exam-loading').style.display='none'"></iframe>
-            </div>
-        </div>
-    </div>
-
-    <!-- 1. MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ -->
-    <div id="auth-view" class="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 p-4">
-        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-800">Ôn Thi THPT 2026</h1>
-            <div class="flex justify-center mb-6"><i class="fas fa-graduation-cap text-6xl text-blue-500"></i></div>
+    <!-- 1. MÀN HÌNH LOGIN/REGISTER -->
+    <div id="auth-view" class="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all hover:scale-105 duration-300">
+            <h1 class="text-4xl font-extrabold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Luyện Thi 2026</h1>
+            <p class="text-center text-gray-500 mb-8">Học Tập - Kết Nối - Giải Trí</p>
+            
             <div class="space-y-4">
-                <input type="email" id="auth-email" placeholder="Email (dùng email thật)" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <input type="password" id="auth-pass" placeholder="Mật khẩu (tối thiểu 6 ký tự)" class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 font-bold transition">Đăng Nhập</button>
-                <button onclick="handleRegister()" class="w-full bg-gray-200 text-gray-700 p-3 rounded hover:bg-gray-300 font-bold transition">Đăng Ký & Xác Thực Email</button>
+                <input type="email" id="auth-email" placeholder="Email (để đăng nhập/đăng ký)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <input type="password" id="auth-pass" placeholder="Mật khẩu (tối thiểu 6 ký tự)" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <button onclick="handleLogin()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">Đăng Nhập</button>
+                <button onclick="handleRegister()" class="w-full bg-white text-gray-700 border border-gray-300 p-4 rounded-xl font-bold hover:bg-gray-50 transition">Đăng Ký Mới</button>
             </div>
-            <p class="text-xs text-center text-gray-500 mt-4">Lưu ý: Bạn phải xác thực email mới được vào học.</p>
+            <p class="text-xs text-center text-gray-400 mt-6">Hệ thống hỗ trợ học tập trực tuyến toàn diện</p>
         </div>
     </div>
 
-    <!-- 1b. MÀN HÌNH CHỜ XÁC THỰC EMAIL -->
-    <div id="verify-email-view" class="hidden-section min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md text-center">
-            <i class="fas fa-envelope-open-text text-6xl text-yellow-500 mb-4"></i>
-            <h2 class="text-2xl font-bold mb-2">Vui lòng xác thực Email</h2>
-            <p class="text-gray-600 mb-6">Chúng tôi đã gửi link xác thực đến <strong id="verify-email-display">email</strong>. Vui lòng kiểm tra hộp thư (cả mục Spam) và bấm vào link để kích hoạt tài khoản.</p>
-            <div class="space-y-3">
-                <button onclick="checkVerification()" class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 font-bold">Tôi đã xác thực xong</button>
-                <button onclick="resendVerification()" class="w-full border border-blue-600 text-blue-600 p-3 rounded hover:bg-blue-50">Gửi lại email</button>
-                <button onclick="handleLogout()" class="text-sm text-gray-500 hover:underline">Đăng xuất</button>
+    <!-- 2. GIAO DIỆN CHÍNH (APP) -->
+    <div id="main-app" class="hidden-section flex flex-1 h-full">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-16 md:w-64 bg-white shadow-xl flex flex-col z-20 transition-all duration-300">
+            <div class="p-4 flex items-center justify-center border-b h-16">
+                <i class="fas fa-graduation-cap text-3xl text-indigo-600"></i>
+                <span class="ml-2 text-xl font-bold text-gray-800 hidden md:block">2026</span>
             </div>
-        </div>
-    </div>
-
-    <!-- GIAO DIỆN CHÍNH -->
-    <div id="main-app" class="hidden-section min-h-screen flex flex-col">
-        <nav class="bg-blue-800 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-2 cursor-pointer" onclick="navigateTo('dashboard')">
-                    <i class="fas fa-book-open text-xl"></i>
-                    <span class="text-xl font-bold hidden md:block">Luyện Thi 2026</span>
+            
+            <nav class="flex-1 overflow-y-auto py-4 space-y-2 px-2">
+                <button onclick="nav('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center" title="Trang Chủ">
+                    <i class="fas fa-home w-6 text-center"></i> <span class="hidden md:block ml-2">Trang Chủ</span>
+                </button>
+                <button onclick="nav('subjects')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center" title="Môn Học">
+                    <i class="fas fa-book w-6 text-center"></i> <span class="hidden md:block ml-2">Môn Học</span>
+                </button>
+                 <button onclick="nav('groups')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center" title="Nhóm">
+                    <i class="fas fa-users w-6 text-center"></i> <span class="hidden md:block ml-2">Nhóm Học Tập</span>
+                </button>
+                <button onclick="nav('chat')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center" title="Chat">
+                    <i class="fas fa-comments w-6 text-center"></i> <span class="hidden md:block ml-2">Tin Nhắn</span>
+                </button>
+                <button onclick="nav('games')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center" title="Game">
+                    <i class="fas fa-gamepad w-6 text-center"></i> <span class="hidden md:block ml-2">Giải Trí (5 Games)</span>
+                </button>
+                
+                <div id="admin-menu" class="hidden pt-4 border-t mt-4">
+                    <p class="px-4 text-xs font-bold text-gray-400 uppercase hidden md:block mb-2">Admin</p>
+                    <button onclick="nav('admin')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 font-bold transition flex items-center">
+                        <i class="fas fa-shield-alt w-6 text-center"></i> <span class="hidden md:block ml-2">Quản Trị</span>
+                    </button>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <span id="user-display-name" class="font-medium">User</span>
-                    <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm transition"><i class="fas fa-sign-out-alt"></i> Thoát</button>
+            </nav>
+
+            <div class="p-4 border-t">
+                <div class="flex items-center cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition" onclick="openProfileModal()">
+                    <img id="my-avatar-img" src="https://ui-avatars.com/api/?name=User" class="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-indigo-500">
+                    <div class="ml-3 hidden md:block overflow-hidden">
+                        <p id="my-name-display" class="text-sm font-bold truncate">User</p>
+                        <p id="my-role-display" class="text-xs text-gray-500">Student</p>
+                    </div>
                 </div>
             </div>
-        </nav>
+        </aside>
 
-        <div class="flex flex-1 overflow-hidden">
-            <aside class="w-64 bg-white shadow-md hidden md:block flex-col">
-                <div class="p-4 border-b"><h3 class="font-bold text-gray-500 uppercase text-xs">Menu Chính</h3></div>
-                <nav class="flex-1 p-4 space-y-2">
-                    <button onclick="navigateTo('dashboard')" class="w-full text-left px-4 py-2 rounded hover:bg-blue-50 text-blue-700 font-medium"><i class="fas fa-home w-6"></i> Trang Chủ</button>
-                    <button onclick="navigateTo('online-class')" class="w-full text-left px-4 py-2 rounded hover:bg-blue-50 text-green-600 font-medium"><i class="fas fa-video w-6"></i> Lớp Trực Tuyến</button>
-                    <button onclick="navigateTo('group-chat')" class="w-full text-left px-4 py-2 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700"><i class="fas fa-comments w-6"></i> Nhóm Thảo Luận</button>
-                    <div id="admin-menu-item" class="hidden">
-                        <div class="mt-4 mb-2 px-4 text-xs font-bold text-gray-400 uppercase">Quản Trị</div>
-                        <button onclick="navigateTo('admin-panel')" class="w-full text-left px-4 py-2 rounded hover:bg-red-50 text-red-600 font-medium"><i class="fas fa-user-shield w-6"></i> Quản Lý Học Viên</button>
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-gray-50">
+            <!-- Header Mobile -->
+            <div class="md:hidden h-16 bg-white shadow flex items-center justify-between px-4 z-10">
+                <span class="font-bold text-lg text-indigo-800">LT 2026</span>
+                <button onclick="handleLogout()" class="text-red-500"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div id="content-container" class="flex-1 overflow-y-auto p-4 md:p-8">
+                
+                <!-- VIEW: DASHBOARD -->
+                <div id="view-dashboard" class="fade-in space-y-6">
+                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+                        <div class="relative z-10">
+                            <h2 class="text-3xl font-bold mb-2">Chào mừng trở lại!</h2>
+                            <p class="opacity-90">Hôm nay bạn muốn ôn tập môn gì hay giải trí một chút?</p>
+                        </div>
+                        <i class="fas fa-rocket absolute -bottom-5 -right-5 text-9xl opacity-20 transform rotate-12"></i>
                     </div>
-                </nav>
-            </aside>
+                    
+                    <h3 class="font-bold text-xl text-gray-700 border-l-4 border-indigo-500 pl-3">Tiến Độ Tổng Quan</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Cards tiến độ -->
+                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="font-bold text-gray-600">Toán</span>
+                                <i class="fas fa-calculator text-blue-500 bg-blue-100 p-2 rounded-lg"></i>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="dash-prog-toan" class="bg-blue-500 h-2 rounded-full" style="width: 30%"></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="font-bold text-gray-600">Văn</span>
+                                <i class="fas fa-pen-nib text-pink-500 bg-pink-100 p-2 rounded-lg"></i>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="dash-prog-van" class="bg-pink-500 h-2 rounded-full" style="width: 45%"></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="font-bold text-gray-600">Anh</span>
+                                <i class="fas fa-language text-yellow-500 bg-yellow-100 p-2 rounded-lg"></i>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="dash-prog-anh" class="bg-yellow-500 h-2 rounded-full" style="width: 60%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <main class="flex-1 p-6 overflow-y-auto bg-gray-50" id="content-area">
-                <!-- DASHBOARD -->
-                <div id="view-dashboard" class="fade-in">
-                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Chọn Môn Ôn Tập</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div class="bg-white rounded-xl shadow p-6 cursor-pointer border-t-4 border-blue-500 hover:shadow-lg" onclick="navigateTo('subject-toan')">
-                            <h3 class="text-xl font-bold mb-2">Môn Toán</h3>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="progress-toan" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div></div>
-                            <div class="text-right text-xs mt-1">Tiến độ: <span id="text-progress-toan">0%</span></div>
+                <!-- VIEW: SUBJECTS -->
+                <div id="view-subjects" class="hidden-section fade-in">
+                    <h2 class="text-2xl font-bold mb-6">Kho Môn Học</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div onclick="openSubject('Toán')" class="bg-white p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-blue-500 group">
+                            <h3 class="text-xl font-bold group-hover:text-blue-600">Toán Học</h3>
+                            <p class="text-sm text-gray-500 mt-2">Đại số, Hình học, Giải tích.</p>
                         </div>
-                        <div class="bg-white rounded-xl shadow p-6 cursor-pointer border-t-4 border-purple-500 hover:shadow-lg" onclick="navigateTo('subject-ly')">
-                            <h3 class="text-xl font-bold mb-2">Môn Lý</h3>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="progress-ly" class="bg-purple-600 h-2.5 rounded-full" style="width: 0%"></div></div>
-                            <div class="text-right text-xs mt-1">Tiến độ: <span id="text-progress-ly">0%</span></div>
+                        <div onclick="openSubject('Lý')" class="bg-white p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-purple-500 group">
+                            <h3 class="text-xl font-bold group-hover:text-purple-600">Vật Lý</h3>
+                            <p class="text-sm text-gray-500 mt-2">Cơ, Điện, Quang, Hạt nhân.</p>
                         </div>
-                        <div class="bg-white rounded-xl shadow p-6 cursor-pointer border-t-4 border-green-500 hover:shadow-lg" onclick="navigateTo('subject-hoa')">
-                            <h3 class="text-xl font-bold mb-2">Môn Hóa</h3>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="progress-hoa" class="bg-green-600 h-2.5 rounded-full" style="width: 0%"></div></div>
-                            <div class="text-right text-xs mt-1">Tiến độ: <span id="text-progress-hoa">0%</span></div>
+                        <div onclick="openSubject('Hóa')" class="bg-white p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-green-500 group">
+                            <h3 class="text-xl font-bold group-hover:text-green-600">Hóa Học</h3>
+                            <p class="text-sm text-gray-500 mt-2">Vô cơ, Hữu cơ.</p>
+                        </div>
+                        <div onclick="openSubject('Văn')" class="bg-white p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-pink-500 group">
+                            <h3 class="text-xl font-bold group-hover:text-pink-600">Ngữ Văn</h3>
+                            <p class="text-sm text-gray-500 mt-2">Nghị luận văn học, xã hội.</p>
+                        </div>
+                        <div onclick="openSubject('Anh')" class="bg-white p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-yellow-500 group">
+                            <h3 class="text-xl font-bold group-hover:text-yellow-600">Tiếng Anh</h3>
+                            <p class="text-sm text-gray-500 mt-2">Ngữ pháp, Từ vựng, Reading.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- LỚP ONLINE -->
-                <div id="view-online-class" class="hidden-section fade-in">
-                    <h2 class="text-2xl font-bold mb-4 text-green-700">Lịch Học Trực Tuyến (Live)</h2>
-                    <div class="bg-white p-6 rounded shadow">
-                        <div class="mb-4 border-l-4 border-green-500 pl-4 py-2 bg-green-50">
-                            <h4 class="font-bold">Ca sáng: 08:00 - 10:00 (Thứ 2, 4, 6)</h4>
-                            <p class="text-sm">Chuyên đề: Giải tích 12</p>
-                            <a href="#" class="inline-block mt-2 bg-green-600 text-white px-4 py-1 rounded text-sm hover:bg-green-700">Vào lớp (Google Meet)</a>
+                <!-- VIEW: SUBJECT DETAIL (3 Phần) -->
+                <div id="view-subject-detail" class="hidden-section fade-in h-full flex flex-col">
+                    <div class="flex items-center gap-4 mb-4">
+                        <button onclick="nav('subjects')" class="text-indigo-600 font-bold"><i class="fas fa-arrow-left"></i> Quay lại</button>
+                        <h2 id="detail-subject-title" class="text-3xl font-bold text-gray-800"></h2>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="flex space-x-1 border-b mb-4">
+                        <button onclick="switchSubjectTab('video')" id="tab-subj-video" class="flex-1 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 transition"><i class="fas fa-video"></i> Video Bài Giảng</button>
+                        <button onclick="switchSubjectTab('doc')" id="tab-subj-doc" class="flex-1 py-3 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition"><i class="fas fa-file-pdf"></i> Tài Liệu (PDF)</button>
+                        <button onclick="switchSubjectTab('exam')" id="tab-subj-exam" class="flex-1 py-3 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition"><i class="fas fa-edit"></i> Thi Online</button>
+                    </div>
+
+                    <!-- Content 1: Video List -->
+                    <div id="subj-content-video" class="flex-1 overflow-y-auto space-y-4"></div>
+
+                    <!-- Content 2: Docs (PDF) -->
+                    <div id="subj-content-doc" class="hidden-section flex-1 flex flex-col h-full">
+                        <div id="doc-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-1"></div>
+                        <div id="doc-viewer" class="flex-1 bg-gray-100 rounded-lg border hidden relative">
+                            <button onclick="closeDocViewer()" class="absolute top-2 right-2 bg-red-500 text-white z-10 px-3 py-1 rounded shadow">Đóng</button>
+                            <iframe id="pdf-frame" class="w-full h-full" src=""></iframe>
                         </div>
-                        <div class="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
-                            <h4 class="font-bold">Ca tối: 19:30 - 21:30 (Thứ 3, 5, 7)</h4>
-                            <p class="text-sm">Chuyên đề: Hóa Vô Cơ</p>
-                            <a href="#" class="inline-block mt-2 bg-blue-600 text-white px-4 py-1 rounded text-sm hover:bg-blue-700">Vào lớp (Zoom)</a>
+                    </div>
+
+                    <!-- Content 3: Exam -->
+                    <div id="subj-content-exam" class="hidden-section flex-1 flex flex-col h-full">
+                        <div id="exam-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-1"></div>
+                        <div id="exam-viewer" class="flex-1 bg-white rounded-lg border hidden relative">
+                            <button onclick="closeExamViewer()" class="absolute top-2 right-2 bg-red-500 text-white z-10 px-3 py-1 rounded shadow">Đóng</button>
+                            <iframe id="exam-frame" class="w-full h-full" src=""></iframe>
                         </div>
                     </div>
                 </div>
 
-                <!-- SUBJECT DETAIL -->
-                <div id="view-subject" class="hidden-section fade-in">
-                    <button onclick="navigateTo('dashboard')" class="mb-4 text-blue-600 hover:underline"><i class="fas fa-arrow-left"></i> Quay lại</button>
-                    <h2 id="subject-title" class="text-3xl font-bold mb-6">Môn Học</h2>
-                    <div class="bg-white rounded-lg shadow p-6" id="subject-content-list"></div>
-                </div>
-
-                <!-- CHAT -->
-                <div id="view-group-chat" class="hidden-section fade-in h-[calc(100vh-140px)] flex flex-col">
-                    <h2 class="text-2xl font-bold mb-4">Nhóm Thảo Luận</h2>
-                    <div id="chat-box" class="flex-1 bg-white border rounded-t-lg p-4 overflow-y-auto space-y-3"></div>
-                    <div class="bg-white border-x border-b rounded-b-lg p-4 flex gap-2">
-                        <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." class="flex-1 border p-2 rounded" onkeypress="if(event.key === 'Enter') sendChat()">
-                        <button onclick="sendChat()" class="bg-blue-600 text-white px-6 py-2 rounded">Gửi</button>
+                <!-- VIEW: GROUPS -->
+                <div id="view-groups" class="hidden-section fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Nhóm Học Tập</h2>
+                        <button onclick="openCreateGroupModal()" id="btn-create-group" class="hidden bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow"><i class="fas fa-plus"></i> Tạo Nhóm</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="groups-list">
+                        <!-- Danh sách nhóm load từ DB -->
                     </div>
                 </div>
 
-                <!-- ADMIN PANEL -->
+                <!-- VIEW: MEETING (HỌP ONLINE) -->
+                <div id="view-meeting" class="hidden-section fade-in h-[calc(100vh-100px)] flex flex-col">
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <h2 class="text-xl font-bold text-red-600"><i class="fas fa-video"></i> Phòng Học Trực Tuyến</h2>
+                        <button onclick="endMeeting()" class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300 text-sm font-bold text-gray-700">Rời phòng</button>
+                    </div>
+                    <div id="meet-container" class="flex-1 bg-black rounded-xl overflow-hidden shadow-2xl relative">
+                        <div class="absolute inset-0 flex items-center justify-center text-white">
+                            <p>Đang tải phòng học...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: CHAT -->
+                <div id="view-chat" class="hidden-section fade-in h-[calc(100vh-120px)] flex bg-white rounded-xl shadow-lg overflow-hidden border">
+                    <!-- Chat Sidebar -->
+                    <div class="w-1/3 md:w-1/4 border-r bg-gray-50 flex flex-col">
+                        <div class="p-3 border-b flex space-x-1 justify-between">
+                             <button onclick="switchChatTab('global')" class="flex-1 py-1 px-2 text-xs md:text-sm font-bold text-indigo-600 bg-indigo-50 rounded truncate">Chung</button>
+                             <button onclick="switchChatTab('private')" class="flex-1 py-1 px-2 text-xs md:text-sm font-bold text-gray-500 hover:bg-gray-200 rounded truncate">Riêng</button>
+                             <button onclick="switchChatTab('group')" class="flex-1 py-1 px-2 text-xs md:text-sm font-bold text-gray-500 hover:bg-gray-200 rounded truncate">Nhóm</button>
+                        </div>
+                        <div id="chat-list" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+                    </div>
+                    <!-- Chat Content -->
+                    <div class="flex-1 flex flex-col relative bg-white">
+                        <div id="chat-header" class="p-3 border-b font-bold text-gray-700 flex justify-between items-center bg-gray-50">
+                            <span id="chat-title-display">Chat Chung Hệ Thống</span>
+                        </div>
+                        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"></div>
+                        
+                        <!-- Input Area -->
+                        <div class="p-3 border-t bg-white flex flex-col gap-2">
+                            <div id="image-preview" class="hidden h-16 w-16 relative">
+                                <img id="img-prev-src" class="h-full w-full object-cover rounded border">
+                                <button onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow">x</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="cursor-pointer text-gray-400 hover:text-indigo-600 p-2">
+                                    <i class="fas fa-image text-xl"></i>
+                                    <input type="file" accept="image/*" class="hidden" onchange="handleImageSelect(this)">
+                                </label>
+                                <button onclick="simulateVoiceMsg()" class="text-gray-400 hover:text-red-500 p-2"><i class="fas fa-microphone text-xl"></i></button>
+                                
+                                <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="Nhập tin nhắn..." onkeypress="if(event.key==='Enter') sendChat()">
+                                <button onclick="sendChat()" class="text-indigo-600 hover:text-indigo-800 p-2"><i class="fas fa-paper-plane text-xl"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: GAMES -->
+                <div id="view-games" class="hidden-section fade-in">
+                    <h2 class="text-2xl font-bold mb-6 text-purple-600">Khu Vực Giải Trí & Xả Stress</h2>
+                    
+                    <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-6">
+                        <h3 class="font-bold text-yellow-800"><i class="fas fa-trophy text-yellow-600"></i> Bảng Xếp Hạng Gần Đây</h3>
+                        <div id="game-leaderboard-top" class="mt-2 text-sm text-gray-700">Chưa có dữ liệu.</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Game 1: Snake -->
+                        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+                            <div class="h-32 bg-green-100 rounded-lg flex items-center justify-center mb-3">
+                                <i class="fas fa-dragon text-5xl text-green-600"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Rắn Săn Mồi</h3>
+                            <p class="text-xs text-gray-500 mb-3">Cổ điển nhưng gây nghiện.</p>
+                            <button onclick="startGame('snake')" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-bold">Chơi Ngay</button>
+                        </div>
+
+                        <!-- Game 2: Math Quiz -->
+                        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+                            <div class="h-32 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+                                <i class="fas fa-square-root-alt text-5xl text-blue-600"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Vua Toán Học</h3>
+                            <p class="text-xs text-gray-500 mb-3">Tính nhẩm nhanh trong 30s.</p>
+                            <button onclick="startGame('math')" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-bold">Chơi Ngay</button>
+                        </div>
+
+                        <!-- Game 3: Memory -->
+                        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+                            <div class="h-32 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
+                                <i class="fas fa-brain text-5xl text-purple-600"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Lật Hình Trí Nhớ</h3>
+                            <p class="text-xs text-gray-500 mb-3">Tìm cặp hình giống nhau.</p>
+                            <button onclick="startGame('memory')" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-bold">Chơi Ngay</button>
+                        </div>
+
+                        <!-- Game 4: Clicker -->
+                        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+                            <div class="h-32 bg-red-100 rounded-lg flex items-center justify-center mb-3">
+                                <i class="fas fa-mouse-pointer text-5xl text-red-600"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Thánh Click</h3>
+                            <p class="text-xs text-gray-500 mb-3">Xem bạn click nhanh thế nào.</p>
+                            <button onclick="startGame('clicker')" class="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 font-bold">Chơi Ngay</button>
+                        </div>
+
+                        <!-- Game 5: Type Racer -->
+                        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+                            <div class="h-32 bg-orange-100 rounded-lg flex items-center justify-center mb-3">
+                                <i class="fas fa-keyboard text-5xl text-orange-600"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">Gõ Phím Siêu Tốc</h3>
+                            <p class="text-xs text-gray-500 mb-3">Luyện gõ từ vựng.</p>
+                            <button onclick="startGame('typer')" class="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 font-bold">Chơi Ngay</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: ADMIN -->
                 <div id="view-admin" class="hidden-section fade-in">
-                    <h2 class="text-2xl font-bold mb-6 text-red-600">Quản Trị Hệ Thống</h2>
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
-                            <h3 class="font-bold">Tiến Độ Học Viên</h3>
-                            <button onclick="loadUserList()" class="text-sm text-blue-600 hover:underline"><i class="fas fa-sync"></i> Refresh</button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-sm">
-                                <thead>
-                                    <tr class="bg-gray-100 text-gray-600">
-                                        <th class="p-3 border-b">Email</th>
-                                        <th class="p-3 border-b text-center">Toán</th>
-                                        <th class="p-3 border-b text-center">Lý</th>
-                                        <th class="p-3 border-b text-center">Hóa</th>
-                                        <th class="p-3 border-b">Trạng thái</th>
-                                        <th class="p-3 border-b">Hành động</th>
+                    <h2 class="text-2xl font-bold mb-6 text-red-600">Trung Tâm Quản Trị</h2>
+                    
+                    <div class="flex space-x-2 mb-6 border-b">
+                        <button onclick="switchAdminTab('users')" id="btn-tab-users" class="px-4 py-2 border-b-2 border-red-600 font-bold text-red-600">Users</button>
+                        <button onclick="switchAdminTab('logs')" id="btn-tab-logs" class="px-4 py-2 text-gray-500 hover:text-red-600">Nhật ký hoạt động</button>
+                    </div>
+
+                    <div id="admin-tab-users">
+                        <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
+                             <table class="w-full text-left text-sm min-w-[700px]">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-3">Email/Tên</th>
+                                        <th class="p-3">Vai trò</th>
+                                        <th class="p-3">Trạng thái</th>
+                                        <th class="p-3 text-right">Hành động</th>
                                     </tr>
                                 </thead>
-                                <tbody id="user-list-body"></tbody>
+                                <tbody id="admin-user-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="admin-tab-logs" class="hidden-section">
+                        <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto p-4 max-h-[500px] overflow-y-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-100 sticky top-0">
+                                    <tr>
+                                        <th class="p-3">Thời gian</th>
+                                        <th class="p-3">Người dùng</th>
+                                        <th class="p-3">Hành động</th>
+                                        <th class="p-3">Chi tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-log-list">
+                                    <tr><td colspan="4" class="p-3 text-center text-gray-500">Đang tải nhật ký...</td></tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-            </main>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: PROFILE EDIT -->
+    <div id="modal-profile" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white rounded-xl w-96 p-6 shadow-2xl transform scale-100 transition-transform">
+            <h3 class="text-xl font-bold mb-4">Chỉnh sửa hồ sơ</h3>
+            <div class="mb-4 text-center">
+                <img id="profile-preview-img" src="" class="w-20 h-20 rounded-full mx-auto mb-2 border">
+                <p class="text-xs text-gray-500">Email không thể thay đổi</p>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Tên hiển thị</label>
+                    <input type="text" id="profile-name-input" class="w-full border rounded p-2">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Avatar URL (Link ảnh)</label>
+                    <input type="text" id="profile-avatar-input" class="w-full border rounded p-2" onchange="document.getElementById('profile-preview-img').src=this.value">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-2">
+                <button onclick="document.getElementById('modal-profile').classList.add('hidden')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Hủy</button>
+                <button onclick="saveProfile()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Lưu thay đổi</button>
+            </div>
         </div>
     </div>
 
-    <!-- Firebase & YouTube SDK -->
+    <!-- MODAL: CREATE GROUP -->
+    <div id="modal-create-group" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
+        <div class="bg-white rounded-xl w-96 p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-indigo-700">Tạo Nhóm Học Tập Mới</h3>
+            <div class="space-y-3">
+                <input type="text" id="new-group-name" placeholder="Tên nhóm" class="w-full border rounded p-2">
+                <input type="password" id="new-group-pass" placeholder="Đặt mật khẩu nhóm" class="w-full border rounded p-2">
+                <p class="text-xs text-gray-500">* Chỉ trưởng nhóm mới có quyền tạo và quản lý.</p>
+            </div>
+            <div class="mt-6 flex justify-end space-x-2">
+                <button onclick="document.getElementById('modal-create-group').classList.add('hidden')" class="px-4 py-2 text-gray-600">Hủy</button>
+                <button onclick="createGroup()" class="px-4 py-2 bg-indigo-600 text-white rounded font-bold">Tạo ngay</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GAME PLAYING -->
+    <div id="modal-game-play" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-95">
+        <div class="relative w-full max-w-2xl flex flex-col items-center">
+            <div class="flex justify-between w-full text-white mb-2 px-4">
+                <span id="game-title-play" class="font-bold text-xl">Game</span>
+                <span id="game-score-play" class="font-mono text-yellow-400 text-xl">Score: 0</span>
+                <button onclick="closeGame()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-2xl"></i></button>
+            </div>
+            <div id="game-canvas-container" class="bg-gray-800 p-2 rounded-lg w-full flex justify-center min-h-[400px] items-center">
+                <!-- Canvas or DOM Game injected here -->
+            </div>
+            <div id="game-controls-hint" class="text-gray-400 text-sm mt-4 text-center">Sử dụng phím mũi tên để chơi</div>
+        </div>
+    </div>
+    
+    <!-- MODAL VIDEO PLAYER (STRICT MODE) -->
+    <div id="video-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black">
+        <div class="w-full h-full flex flex-col">
+            <div class="bg-gray-900 p-2 flex justify-between text-white items-center px-4">
+                <span id="video-title-player" class="font-bold truncate">Bài Học (Chế độ nghiêm ngặt: Không tua)</span>
+                <button onclick="closeVideoModal()" class="text-2xl hover:text-red-500 p-2"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-1 relative bg-black flex items-center justify-center" id="youtube-container">
+                <div id="youtube-player"></div>
+                <!-- Transparent overlay to prevent context menu or clicks if API fails -->
+            </div>
+            <div class="bg-gray-800 p-4 text-white flex flex-col gap-2">
+                 <div class="flex justify-between text-xs md:text-sm">
+                    <span id="video-time">00:00</span>
+                    <span id="video-percent" class="text-green-400 font-bold">0%</span>
+                 </div>
+                 <!-- Read-only Progress Bar -->
+                 <div class="w-full bg-gray-600 h-2 rounded no-interaction relative">
+                     <div id="video-bar" class="bg-blue-500 h-2 w-0 rounded transition-all duration-300"></div>
+                 </div>
+                 <p class="text-xs text-center text-red-400 mt-1"><i class="fas fa-lock"></i> Không thể tua video này. Vui lòng xem hết bài giảng.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInWithCustomToken, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, getDocs, arrayUnion, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIG FIREBASE
+        // 1. CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyDB2qnJUEKL0KSwEibU0t-mpBKyzuUt7SE",
             authDomain: "onthi-2026.firebaseapp.com",
             projectId: "onthi-2026",
             storageBucket: "onthi-2026.firebasestorage.app",
             messagingSenderId: "720604280248",
-            appId: "1:720604280248:web:1e6a843eb0a0de42158b4d",
-            measurementId: "G-HX53LMY9B1"
+            appId: "1:720604280248:web:1e6a843eb0a0de42158b4d"
         };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = 'onthi-2026';
-        let currentUser = null, userData = null;
+        const APP_ID = 'onthi-2026'; // Prefix for DB paths
 
-        // --- AUTH SYSTEM ---
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-        };
-        initAuth();
+        // STATE
+        let currentUser = null;
+        let userProfile = null;
+        let currentChatType = 'global'; // 'global', 'group', 'private'
+        let currentChatTarget = null; // groupId or userId
+        let player = null, videoTimer = null;
+        let gameInterval = null;
+        let meetingApi = null;
+        let currentAdminTab = 'users';
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                // 1. Kiểm tra trong DB (Block check)
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'info');
-                const docSnap = await getDoc(userRef);
+        // INJECT YOUTUBE API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-                if (!docSnap.exists()) { signOut(auth); return; }
-                const data = docSnap.data();
-
-                // KHÓA CHẶT CHẼ: Nếu bị block -> Logout ngay
-                if (data.isBlocked) {
-                    await signOut(auth);
-                    alert("Tài khoản của bạn đã bị KHÓA vĩnh viễn do vi phạm quy định.");
-                    window.location.reload();
-                    return;
-                }
-
-                // XÁC THỰC EMAIL: Nếu chưa xác thực -> Chuyển hướng
-                if (!user.emailVerified) {
-                    document.getElementById('auth-view').classList.add('hidden');
-                    document.getElementById('main-app').classList.add('hidden-section');
-                    document.getElementById('verify-email-view').classList.remove('hidden-section');
-                    document.getElementById('verify-email-display').innerText = user.email;
-                    return;
-                }
-
-                // Nếu mọi thứ OK -> Vào App
-                userData = data;
-                currentUser = user;
-                
-                document.getElementById('auth-view').classList.add('hidden');
-                document.getElementById('verify-email-view').classList.add('hidden-section');
-                document.getElementById('main-app').classList.remove('hidden-section');
-                document.getElementById('user-display-name').innerText = user.email.split('@')[0];
-                
-                if (userData.role === 'admin') document.getElementById('admin-menu-item').classList.remove('hidden');
-                navigateTo('dashboard');
-            } else {
-                // Chưa login
-                currentUser = null; userData = null;
-                document.getElementById('auth-view').classList.remove('hidden');
-                document.getElementById('verify-email-view').classList.add('hidden-section');
-                document.getElementById('main-app').classList.add('hidden-section');
-            }
-        });
-
+        // --- AUTH ---
         window.handleLogin = async () => {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-pass').value;
             try {
+                const email = document.getElementById('auth-email').value;
+                const pass = document.getElementById('auth-pass').value;
+                if(!email || !pass) return toast('Vui lòng nhập đầy đủ thông tin', 'error');
                 await signInWithEmailAndPassword(auth, email, pass);
-            } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
+            } catch(e) { toast('Lỗi đăng nhập: ' + e.message, 'error'); }
         };
 
         window.handleRegister = async () => {
             const email = document.getElementById('auth-email').value;
             const pass = document.getElementById('auth-pass').value;
+            if(!email || !pass) return toast('Vui lòng nhập đầy đủ thông tin', 'error');
             try {
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
-                const user = cred.user;
+                // await sendEmailVerification(cred.user); // Optional in dev
                 
-                // Gửi email xác thực
-                await sendEmailVerification(user);
-
-                // Cập nhật logic xác định admin tại đây
-                const role = (email.toLowerCase() === 'taobacvietteam@gmail.com') ? 'admin' : 'student';
-                
-                const initialData = {
-                    email: email, role: role, isBlocked: false,
-                    progress: { toan: 0, ly: 0, hoa: 0 }
+                const role = email === 'taobacvietteam@gmail.com' ? 'admin' : 'student';
+                const profile = {
+                    email, role, displayName: email.split('@')[0], 
+                    avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=random`,
+                    isBlocked: false,
+                    createdAt: serverTimestamp()
                 };
-
-                // Lưu dữ liệu riêng tư
-                await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'info'), initialData);
                 
-                // Lưu dữ liệu công khai để Admin theo dõi tiến độ
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users_directory', user.uid), initialData);
-
-                showToast('Đăng ký thành công! Vui lòng kiểm tra email để xác thực.', 'success');
-            } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
+                await setDoc(doc(db, 'artifacts', APP_ID, 'users', cred.user.uid, 'profile', 'info'), profile);
+                await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', cred.user.uid), profile);
+                
+                toast('Đăng ký thành công! Đang đăng nhập...', 'success');
+            } catch(e) { toast(e.message, 'error'); }
         };
 
-        window.resendVerification = async () => {
-            if(auth.currentUser) {
-                await sendEmailVerification(auth.currentUser);
-                showToast('Đã gửi lại email xác thực.', 'success');
-            }
-        };
+        window.handleLogout = () => signOut(auth).then(() => window.location.reload());
 
-        window.checkVerification = async () => {
-            if(auth.currentUser) {
-                await auth.currentUser.reload();
-                if(auth.currentUser.emailVerified) {
-                    window.location.reload(); // Reload để trigger onAuthStateChanged
+        onAuthStateChanged(auth, async (user) => {
+            if(user) {
+                const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'));
+                if(snap.exists()) {
+                    userProfile = snap.data();
+                    if(userProfile.isBlocked) { 
+                        signOut(auth); 
+                        alert('Tài khoản của bạn đã bị khóa bởi Admin!'); 
+                        return; 
+                    }
+                    currentUser = user;
+                    
+                    // UI Init
+                    document.getElementById('auth-view').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden-section');
+                    updateProfileUI();
+                    
+                    if(userProfile.role === 'admin') document.getElementById('admin-menu').classList.remove('hidden');
+                    if(userProfile.role === 'leader' || userProfile.role === 'admin') document.getElementById('btn-create-group').classList.remove('hidden');
+
+                    logActivity('login', 'Đăng nhập hệ thống');
+                    nav('dashboard');
                 } else {
-                    showToast('Bạn chưa xác thực email. Hãy kiểm tra hộp thư.', 'error');
+                    // Fallback if profile missing
+                    signOut(auth);
+                    toast('Không tìm thấy hồ sơ người dùng.', 'error');
                 }
+            } else {
+                document.getElementById('auth-view').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('hidden-section');
             }
+        });
+
+        // --- NAVIGATION & UI ---
+        window.nav = (view) => {
+            document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
+            const target = document.getElementById(`view-${view}`);
+            if(target) target.classList.remove('hidden-section');
+            
+            if(view === 'groups') loadGroups();
+            if(view === 'admin') loadAdminStats();
+            if(view === 'games') loadLeaderboard();
         };
 
-        window.handleLogout = () => signOut(auth);
-
-        // --- NAVIGATION ---
-        window.navigateTo = (page) => {
-            document.querySelectorAll('#main-app > div > main > div').forEach(div => div.classList.add('hidden-section'));
-            if (page === 'dashboard') {
-                document.getElementById('view-dashboard').classList.remove('hidden-section');
-                loadProgress();
-            } else if (page === 'online-class') {
-                document.getElementById('view-online-class').classList.remove('hidden-section');
-            } else if (page.startsWith('subject-')) {
-                document.getElementById('view-subject').classList.remove('hidden-section');
-                loadSubject(page.split('-')[1]);
-            } else if (page === 'group-chat') {
-                document.getElementById('view-group-chat').classList.remove('hidden-section');
-                loadChat();
-            } else if (page === 'admin-panel') {
-                document.getElementById('view-admin').classList.remove('hidden-section');
-                loadUserList();
-            }
-        };
-
-        // --- VIDEO PLAYER INTELLIGENT SEEKING ---
-        let player, videoTimer, maxWatchedTime = 0;
-        
-        // Load YouTube API dynamically
-        if (!window.YT) {
-            var tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            var firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        function updateProfileUI() {
+            document.getElementById('my-name-display').innerText = userProfile.displayName;
+            document.getElementById('my-role-display').innerText = userProfile.role.toUpperCase();
+            document.getElementById('my-avatar-img').src = userProfile.avatar;
         }
 
-        window.onYouTubeIframeAPIReady = function() {
-            player = new YT.Player('youtube-player', {
-                height: '100%', width: '100%',
-                playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1, 'rel': 0, 'origin': window.location.origin },
-                events: { 'onStateChange': onPlayerStateChange }
+        window.openProfileModal = () => {
+            document.getElementById('profile-name-input').value = userProfile.displayName;
+            document.getElementById('profile-avatar-input').value = userProfile.avatar;
+            document.getElementById('profile-preview-img').src = userProfile.avatar;
+            document.getElementById('modal-profile').classList.remove('hidden');
+        };
+
+        window.saveProfile = async () => {
+            const newName = document.getElementById('profile-name-input').value;
+            const newAva = document.getElementById('profile-avatar-input').value;
+            
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'info'), { displayName: newName, avatar: newAva });
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid), { displayName: newName, avatar: newAva });
+            
+            userProfile.displayName = newName; userProfile.avatar = newAva;
+            updateProfileUI();
+            document.getElementById('modal-profile').classList.add('hidden');
+            toast('Cập nhật hồ sơ thành công!', 'success');
+        };
+
+        // --- GROUP SYSTEM ---
+        window.openCreateGroupModal = () => document.getElementById('modal-create-group').classList.remove('hidden');
+
+        window.createGroup = async () => {
+            const name = document.getElementById('new-group-name').value;
+            const pass = document.getElementById('new-group-pass').value;
+            if(!name || !pass) return toast('Nhập đủ tên và mật khẩu', 'error');
+            
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups'), {
+                name, pass, leaderId: currentUser.uid, leaderName: userProfile.displayName,
+                members: [currentUser.uid], createdAt: serverTimestamp()
+            });
+            document.getElementById('modal-create-group').classList.add('hidden');
+            toast('Tạo nhóm thành công!', 'success');
+            loadGroups();
+        };
+
+        window.loadGroups = () => {
+            const container = document.getElementById('groups-list');
+            onSnapshot(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups'), snap => {
+                container.innerHTML = '';
+                snap.forEach(d => {
+                    const g = d.data();
+                    const isMember = g.members.includes(currentUser.uid);
+                    const isLeader = g.leaderId === currentUser.uid;
+                    
+                    container.innerHTML += `
+                        <div class="bg-white p-5 rounded-xl shadow border border-indigo-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                            <div>
+                                <h3 class="font-bold text-lg text-indigo-700">${g.name}</h3>
+                                <p class="text-xs text-gray-500">Trưởng nhóm: ${g.leaderName} | ${g.members.length} thành viên</p>
+                            </div>
+                            <div class="flex gap-2 w-full md:w-auto">
+                                ${isMember ? 
+                                    `<button onclick="startGroupMeeting('${d.id}')" class="flex-1 md:flex-none bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 shadow"><i class="fas fa-video"></i> Họp</button>
+                                     <button onclick="openGroupChat('${d.id}', '${g.name}')" class="flex-1 md:flex-none bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 shadow"><i class="fas fa-comment"></i> Chat</button>`
+                                    : `<button onclick="joinGroup('${d.id}', '${g.pass}')" class="flex-1 md:flex-none bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600 shadow">Vào nhóm</button>`
+                                }
+                                ${isLeader ? `<button onclick="deleteGroup('${d.id}')" class="text-red-400 hover:text-red-600 px-2"><i class="fas fa-trash"></i></button>` : ''}
+                            </div>
+                        </div>`;
+                });
+            });
+        };
+
+        window.joinGroup = async (gid, truePass) => {
+            const p = prompt("Nhập mật khẩu nhóm:");
+            if(p === truePass) {
+                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid), { members: arrayUnion(currentUser.uid) });
+                toast('Đã vào nhóm!', 'success');
+                logActivity('join_group', `Vào nhóm ${gid}`);
+            } else {
+                toast('Sai mật khẩu!', 'error');
+            }
+        };
+
+        // --- ONLINE MEETING (JITSI) ---
+        window.startGroupMeeting = (groupId) => {
+            nav('meeting');
+            const domain = 'meet.jit.si';
+            const options = {
+                roomName: `OnThi2026_Group_${groupId}`,
+                width: '100%', height: '100%',
+                parentNode: document.querySelector('#meet-container'),
+                userInfo: { displayName: userProfile.displayName },
+                configOverwrite: { startWithAudioMuted: true },
+                interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false }
+            };
+            document.querySelector('#meet-container').innerHTML = '';
+            meetingApi = new JitsiMeetExternalAPI(domain, options);
+            logActivity('meeting_start', `Họp nhóm ${groupId}`);
+        };
+        
+        window.endMeeting = () => {
+            if(meetingApi) meetingApi.dispose();
+            nav('groups');
+        };
+
+        // --- CHAT SYSTEM (GLOBAL / GROUP / PRIVATE) ---
+        window.switchChatTab = (type) => {
+            currentChatType = type;
+            document.getElementById('chat-messages').innerHTML = '';
+            document.getElementById('chat-list').innerHTML = '';
+            
+            if(type === 'global') {
+                document.getElementById('chat-title-display').innerText = "Chat Chung Toàn Hệ Thống";
+                currentChatTarget = 'global';
+                listenChat('global');
+            } else if (type === 'private') {
+                document.getElementById('chat-title-display').innerText = "Chọn người để nhắn tin";
+                loadUserListForChat();
+            } else if (type === 'group') {
+                document.getElementById('chat-title-display').innerText = "Chọn nhóm của bạn";
+                loadMyGroupsForChat();
+            }
+        };
+
+        function loadUserListForChat() {
+            getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory')).then(snap => {
+                const list = document.getElementById('chat-list');
+                list.innerHTML = '';
+                snap.forEach(d => {
+                    if(d.id === currentUser.uid) return;
+                    const u = d.data();
+                    const div = document.createElement('div');
+                    div.className = "p-2 hover:bg-white rounded cursor-pointer flex items-center transition";
+                    div.innerHTML = `<img src="${u.avatar}" class="w-8 h-8 rounded-full mr-2"><span class="text-sm font-bold truncate">${u.displayName}</span>`;
+                    div.onclick = () => {
+                        currentChatTarget = d.id;
+                        document.getElementById('chat-title-display').innerText = `Nhắn với ${u.displayName}`;
+                        listenChat('private_sorted', getChatId(currentUser.uid, d.id));
+                    };
+                    list.appendChild(div);
+                });
             });
         }
+        
+        function loadMyGroupsForChat() {
+            // Simplified loading from already loaded groups or fetch
+            getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups')).then(snap => {
+                 const list = document.getElementById('chat-list');
+                 list.innerHTML = '';
+                 snap.forEach(d => {
+                     const g = d.data();
+                     if(g.members.includes(currentUser.uid)) {
+                         const div = document.createElement('div');
+                         div.className = "p-2 hover:bg-white rounded cursor-pointer flex items-center transition";
+                         div.innerHTML = `<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2 text-indigo-600"><i class="fas fa-users"></i></div><span class="text-sm font-bold truncate">${g.name}</span>`;
+                         div.onclick = () => openGroupChat(d.id, g.name);
+                         list.appendChild(div);
+                     }
+                 });
+            });
+        }
+        
+        function getChatId(uid1, uid2) { return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`; }
 
-        function onPlayerStateChange(event) {
-            const btnIcon = document.querySelector('#btn-play-pause i');
-            if (event.data == YT.PlayerState.PLAYING) {
-                btnIcon.className = 'fas fa-pause';
-                startVideoTracking();
-            } else {
-                btnIcon.className = 'fas fa-play';
-                stopVideoTracking();
+        let chatUnsub;
+        function listenChat(collectionName, docId) {
+            if(chatUnsub) chatUnsub();
+            
+            let q;
+            if(collectionName === 'global') {
+                q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_global'), orderBy('ts', 'asc'), limit(50));
+            } else if (collectionName === 'private_sorted') {
+                 q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chats', docId, 'messages'), orderBy('ts', 'asc'), limit(50));
+            } else if (collectionName === 'group') {
+                 q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups', docId, 'messages'), orderBy('ts', 'asc'), limit(50));
+            }
+
+            if(q) {
+                chatUnsub = onSnapshot(q, snap => {
+                    const div = document.getElementById('chat-messages');
+                    div.innerHTML = '';
+                    snap.forEach(d => {
+                        renderMsg(d.data(), d.id, div);
+                    });
+                    div.scrollTop = div.scrollHeight;
+                });
             }
         }
 
-        function startVideoTracking() {
-            stopVideoTracking();
-            videoTimer = setInterval(() => {
-                if (!player || !player.getCurrentTime) return;
-                const currentTime = player.getCurrentTime();
-                const duration = player.getDuration();
+        window.openGroupChat = (gid, gname) => {
+            nav('chat');
+            currentChatType = 'group';
+            currentChatTarget = gid;
+            document.getElementById('chat-title-display').innerText = `Nhóm: ${gname}`;
+            listenChat('group', gid);
+        };
+
+        window.sendChat = async () => {
+            const input = document.getElementById('chat-input');
+            const txt = input.value.trim();
+            const img = document.getElementById('img-prev-src').src;
+            const hasImg = !document.getElementById('image-preview').classList.contains('hidden');
+            
+            if(!txt && !hasImg) return;
+            
+            const msgData = {
+                text: txt,
+                img: hasImg ? img : null,
+                uid: currentUser.uid,
+                name: userProfile.displayName,
+                avatar: userProfile.avatar,
+                ts: serverTimestamp(),
+                reactions: {}
+            };
+
+            input.value = '';
+            clearImage();
+
+            try {
+                if(currentChatType === 'global') {
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_global'), msgData);
+                } else if (currentChatType === 'private') {
+                    const chatId = getChatId(currentUser.uid, currentChatTarget);
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chats', chatId, 'messages'), msgData);
+                } else if (currentChatType === 'group') {
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups', currentChatTarget, 'messages'), msgData);
+                }
+            } catch(e) {
+                console.error(e);
+                toast("Không thể gửi tin nhắn", "error");
+            }
+        };
+
+        function renderMsg(msg, id, container) {
+            const isMe = msg.uid === currentUser.uid;
+            const html = `
+                <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative">
+                    ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end">` : ''}
+                    <div class="max-w-[80%] md:max-w-[70%]">
+                        ${!isMe ? `<p class="text-xs text-gray-400 ml-1 mb-1">${msg.name}</p>` : ''}
+                        <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'}">
+                            ${msg.img ? `<img src="${msg.img}" class="rounded-lg mb-2 max-w-full">` : ''}
+                            ${msg.text ? `<p class="break-words">${msg.text}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        window.handleImageSelect = (input) => {
+            const file = input.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.getElementById('img-prev-src').src = e.target.result;
+                    document.getElementById('image-preview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        window.clearImage = () => {
+            document.getElementById('image-preview').classList.add('hidden');
+            document.getElementById('img-prev-src').src = '';
+        };
+
+        // --- GAME CENTER (IMPROVED - ALL 5 GAMES) ---
+        window.startGame = (gameType) => {
+            const modal = document.getElementById('modal-game-play');
+            const container = document.getElementById('game-canvas-container');
+            
+            modal.classList.remove('hidden');
+            container.innerHTML = '';
+            document.getElementById('game-score-play').innerText = "Score: 0";
+            
+            if(gameType === 'snake') initSnakeGame(container);
+            else if(gameType === 'math') initMathGame(container);
+            else if(gameType === 'memory') initMemoryGame(container);
+            else if(gameType === 'clicker') initClickerGame(container);
+            else if(gameType === 'typer') initTyperGame(container);
+            
+            logActivity('play_game', `Chơi game ${gameType}`);
+        };
+
+        window.closeGame = () => {
+            if(gameInterval) clearInterval(gameInterval);
+            document.getElementById('modal-game-play').classList.add('hidden');
+        };
+
+        async function saveGameScore(score, game) {
+            if(!currentUser) return;
+            try {
+                 await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'game_scores'), {
+                    uid: currentUser.uid, 
+                    name: userProfile.displayName, 
+                    game, 
+                    score, 
+                    ts: serverTimestamp()
+                });
+            } catch(e) { console.error("Score save error", e); }
+        }
+
+        window.loadLeaderboard = () => {
+             const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'game_scores'), orderBy('score', 'desc'), limit(5));
+             onSnapshot(q, snap => {
+                 const div = document.getElementById('game-leaderboard-top');
+                 if(snap.empty) { div.innerHTML = "Chưa có dữ liệu."; return; }
+                 const html = [];
+                 snap.forEach(d => {
+                     const data = d.data();
+                     html.push(`<div class="flex justify-between border-b border-yellow-200 py-1"><span>${data.name} (${data.game})</span><span class="font-bold">${data.score}</span></div>`);
+                 });
+                 div.innerHTML = html.join('');
+             });
+        }
+
+        // 1. SNAKE
+        function initSnakeGame(container) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300; canvas.height = 300;
+            container.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            let snake = [{x:10, y:10}];
+            let food = {x:15, y:15};
+            let dx=0, dy=0;
+            let score=0;
+            
+            const handleKey = (e) => {
+                if(e.key==='ArrowUp' && dy!==1) {dx=0; dy=-1}
+                if(e.key==='ArrowDown' && dy!==-1) {dx=0; dy=1}
+                if(e.key==='ArrowLeft' && dx!==1) {dx=-1; dy=0}
+                if(e.key==='ArrowRight' && dx!==-1) {dx=1; dy=0}
+            };
+            document.addEventListener('keydown', handleKey);
+
+            gameInterval = setInterval(() => {
+                const head = {x: snake[0].x+dx, y: snake[0].y+dy};
+                snake.unshift(head);
+                if(head.x === food.x && head.y === food.y) {
+                    score+=10; document.getElementById('game-score-play').innerText = `Score: ${score}`;
+                    food = {x: Math.floor(Math.random()*15), y: Math.floor(Math.random()*15)};
+                } else {
+                    snake.pop();
+                }
                 
-                // LOGIC TUA THÔNG MINH:
-                // Nếu tua quá điểm maxWatchedTime + 3s -> Chặn và quay lại
-                // Cho phép tua thoải mái trong vùng < maxWatchedTime
-                if (currentTime > maxWatchedTime + 3) { 
-                    player.seekTo(maxWatchedTime);
-                    showToast("Bạn chưa học đến đoạn này, không được tua!", "error");
-                } else {
-                    if (currentTime > maxWatchedTime) maxWatchedTime = currentTime;
+                ctx.fillStyle = '#222'; ctx.fillRect(0,0,300,300);
+                ctx.fillStyle = 'red'; ctx.fillRect(food.x*20, food.y*20, 18, 18);
+                ctx.fillStyle = 'lime';
+                snake.forEach(s => ctx.fillRect(s.x*20, s.y*20, 18, 18));
+                
+                if(head.x<0||head.x>=15||head.y<0||head.y>=15) {
+                    clearInterval(gameInterval);
+                    document.removeEventListener('keydown', handleKey);
+                    alert(`Game Over! Score: ${score}`);
+                    saveGameScore(score, 'Snake');
+                    closeGame();
                 }
-
-                if (player.isMuted()) {
-                    player.pauseVideo();
-                    document.getElementById('mute-warning').classList.remove('hidden');
-                } else {
-                    document.getElementById('mute-warning').classList.add('hidden');
+            }, 150);
+        }
+        
+        // 2. MATH
+        function initMathGame(container) {
+            container.innerHTML = `
+                <div class="text-white text-center w-full">
+                    <div id="math-q" class="text-5xl font-bold mb-8">5 + 5 = ?</div>
+                    <input type="number" id="math-ans" class="text-black p-3 rounded text-center text-2xl w-32 focus:outline-none" autofocus>
+                    <button id="btn-math-submit" class="block w-full bg-blue-500 mt-6 p-3 rounded font-bold hover:bg-blue-600 transition">Trả lời</button>
+                    <div id="math-timer" class="mt-4 text-red-400 font-mono text-xl">Time: 30s</div>
+                </div>`;
+            
+            let score = 0;
+            let timeLeft = 30;
+            let a, b, res;
+            
+            const nextQ = () => {
+                a = Math.floor(Math.random()*20); b = Math.floor(Math.random()*20);
+                res = a+b;
+                document.getElementById('math-q').innerText = `${a} + ${b} = ?`;
+                const input = document.getElementById('math-ans');
+                input.value = '';
+                input.focus();
+            };
+            
+            const check = () => {
+                const val = parseInt(document.getElementById('math-ans').value);
+                if(val === res) {
+                    score+=10; document.getElementById('game-score-play').innerText = `Score: ${score}`;
+                    nextQ();
                 }
-
-                updatePlayerUI(currentTime, duration);
+            };
+            
+            document.getElementById('btn-math-submit').onclick = check;
+            document.getElementById('math-ans').onkeydown = (e) => { if(e.key === 'Enter') check(); };
+            
+            nextQ();
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('math-timer').innerText = `Time: ${timeLeft}s`;
+                if(timeLeft<=0) {
+                    clearInterval(gameInterval);
+                    alert(`Hết giờ! Điểm của bạn: ${score}`);
+                    saveGameScore(score, 'Math');
+                    closeGame();
+                }
             }, 1000);
         }
-        function stopVideoTracking() { clearInterval(videoTimer); }
 
-        function updatePlayerUI(current, duration) {
-            const format = s => new Date(s * 1000).toISOString().substr(14, 5);
-            document.getElementById('time-display').innerText = `${format(current)} / ${format(duration)}`;
-            const pct = (current / duration) * 100;
-            const maxPct = (maxWatchedTime / duration) * 100;
-            
-            document.getElementById('video-progress-bar').style.width = `${pct}%`;
-            document.getElementById('max-watched-marker').style.width = `${maxPct}%`;
-            document.getElementById('max-watched-display').innerText = `${Math.round(maxPct)}%`;
-            
-            if (maxPct > 90 && !window.videoCompletedFlag) {
-                window.videoCompletedFlag = true;
-                updateSubjectProgress(5); 
-                showToast("Đã hoàn thành bài học (+5%)", "success");
-            }
+        // 3. MEMORY GAME
+        function initMemoryGame(container) {
+             const icons = ['🍎','🍌','🍒','🍇','🍉','🍊','🍍','🥝'];
+             let cards = [...icons, ...icons].sort(() => 0.5 - Math.random());
+             let flipped = [];
+             let matched = 0;
+             let score = 0;
+             
+             container.innerHTML = `<div class="grid grid-cols-4 gap-2 w-full max-w-sm"></div>`;
+             const grid = container.querySelector('div');
+             
+             cards.forEach((icon, index) => {
+                 const card = document.createElement('div');
+                 card.className = 'memory-card h-20 w-full relative';
+                 card.innerHTML = `
+                    <div class="memory-card-inner w-full h-full">
+                        <div class="memory-front">${icon}</div>
+                        <div class="memory-back"><i class="fas fa-question text-2xl"></i></div>
+                    </div>
+                 `;
+                 card.onclick = () => {
+                     if(card.classList.contains('flipped') || flipped.length >= 2) return;
+                     card.classList.add('flipped');
+                     flipped.push({card, icon});
+                     
+                     if(flipped.length === 2) {
+                         if(flipped[0].icon === flipped[1].icon) {
+                             matched++;
+                             score += 20;
+                             document.getElementById('game-score-play').innerText = `Score: ${score}`;
+                             flipped = [];
+                             if(matched === icons.length) {
+                                 setTimeout(() => {
+                                     alert(`Thắng cuộc! Điểm: ${score}`);
+                                     saveGameScore(score, 'Memory');
+                                     closeGame();
+                                 }, 500);
+                             }
+                         } else {
+                             setTimeout(() => {
+                                 flipped.forEach(f => f.card.classList.remove('flipped'));
+                                 flipped = [];
+                             }, 800);
+                         }
+                     }
+                 };
+                 grid.appendChild(card);
+             });
         }
 
-        window.openVideoModal = (url, title) => {
-            const id = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{10,12})\b/)[1];
-            document.getElementById('modal-video-title').innerText = title;
+        // 4. CLICKER GAME
+        function initClickerGame(container) {
+            container.innerHTML = `
+                <div class="text-center w-full">
+                    <h2 class="text-white text-2xl mb-4">Click nhanh nhất có thể!</h2>
+                    <button id="btn-clicker" class="bg-red-500 active:bg-red-700 text-white rounded-full w-40 h-40 text-2xl font-bold shadow-lg transform transition active:scale-95">CLICK ME</button>
+                    <div id="clicker-timer" class="mt-8 text-yellow-400 text-xl font-mono">10.0s</div>
+                </div>
+            `;
+            
+            let clicks = 0;
+            let time = 10.0;
+            let active = true;
+            
+            document.getElementById('btn-clicker').onclick = () => {
+                if(!active) return;
+                clicks++;
+                document.getElementById('game-score-play').innerText = `Clicks: ${clicks}`;
+            };
+            
+            gameInterval = setInterval(() => {
+                time -= 0.1;
+                document.getElementById('clicker-timer').innerText = time.toFixed(1) + 's';
+                if(time <= 0) {
+                    active = false;
+                    clearInterval(gameInterval);
+                    alert(`Hết giờ! Tốc độ ngón tay của bạn: ${clicks} clicks.`);
+                    saveGameScore(clicks, 'Clicker');
+                    closeGame();
+                }
+            }, 100);
+        }
+
+        // 5. TYPER GAME
+        function initTyperGame(container) {
+            const words = ['html', 'css', 'javascript', 'firebase', 'code', 'bug', 'fix', 'deploy', 'react', 'api', 'server', 'client', 'data', 'cloud'];
+            let currentWord = '';
+            let score = 0;
+            let time = 30;
+            
+            container.innerHTML = `
+                <div class="text-center w-full">
+                    <div id="typer-word" class="text-4xl font-bold text-green-400 mb-6 bg-gray-900 p-4 rounded border border-gray-700 select-none">START</div>
+                    <input type="text" id="typer-input" class="w-full max-w-xs p-3 rounded text-center text-xl uppercase placeholder-gray-300" placeholder="Gõ từ trên..." autocomplete="off">
+                    <div id="typer-timer" class="mt-4 text-gray-400">Time: 30s</div>
+                </div>
+            `;
+            
+            const next = () => {
+                currentWord = words[Math.floor(Math.random() * words.length)];
+                document.getElementById('typer-word').innerText = currentWord.toUpperCase();
+                document.getElementById('typer-input').value = '';
+            };
+            
+            next();
+            const input = document.getElementById('typer-input');
+            input.focus();
+            
+            input.oninput = () => {
+                if(input.value.toLowerCase() === currentWord) {
+                    score++;
+                    document.getElementById('game-score-play').innerText = `Words: ${score}`;
+                    next();
+                }
+            };
+            
+            gameInterval = setInterval(() => {
+                time--;
+                document.getElementById('typer-timer').innerText = `Time: ${time}s`;
+                if(time <= 0) {
+                    clearInterval(gameInterval);
+                    alert(`Hết giờ! Bạn gõ được ${score} từ.`);
+                    saveGameScore(score, 'Typer');
+                    closeGame();
+                }
+            }, 1000);
+        }
+
+        // --- ADMIN & LOGS ---
+        window.logActivity = (action, details) => {
+            if(!currentUser) return;
+            addDoc(collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity'), {
+                uid: currentUser.uid, name: userProfile.displayName, action, details, ts: serverTimestamp()
+            });
+        };
+
+        window.switchAdminTab = (tab) => {
+            currentAdminTab = tab;
+            const btnUsers = document.getElementById('btn-tab-users');
+            const btnLogs = document.getElementById('btn-tab-logs');
+            const viewUsers = document.getElementById('admin-tab-users');
+            const viewLogs = document.getElementById('admin-tab-logs');
+            
+            if(tab === 'users') {
+                btnUsers.className = "px-4 py-2 border-b-2 border-red-600 font-bold text-red-600";
+                btnLogs.className = "px-4 py-2 text-gray-500 hover:text-red-600";
+                viewUsers.classList.remove('hidden-section');
+                viewLogs.classList.add('hidden-section');
+                loadAdminStats();
+            } else {
+                btnUsers.className = "px-4 py-2 text-gray-500 hover:text-red-600";
+                btnLogs.className = "px-4 py-2 border-b-2 border-red-600 font-bold text-red-600";
+                viewUsers.classList.add('hidden-section');
+                viewLogs.classList.remove('hidden-section');
+                loadActivityLogs();
+            }
+        };
+
+        window.loadAdminStats = () => {
+             getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory')).then(snap => {
+                 const tbody = document.getElementById('admin-user-list');
+                 tbody.innerHTML = '';
+                 snap.forEach(d => {
+                     const u = d.data();
+                     const isSelf = d.id === currentUser.uid;
+                     
+                     tbody.innerHTML += `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3"><div class="font-bold">${u.displayName}</div><div class="text-xs text-gray-500">${u.email}</div></td>
+                            <td class="p-3"><span class="bg-gray-200 text-xs px-2 py-1 rounded">${u.role}</span></td>
+                            <td class="p-3"><span class="${u.isBlocked ? 'text-red-500':'text-green-500'} font-bold text-xs">${u.isBlocked ? 'Bị khóa':'Active'}</span></td>
+                            <td class="p-3 text-right">
+                                ${!isSelf ? `
+                                    <div class="flex justify-end space-x-2">
+                                        ${u.role==='student' ? `<button onclick="assignLeader('${d.id}')" class="text-blue-500 hover:underline text-xs bg-blue-50 p-1 rounded">Thăng Leader</button>` : ''}
+                                        ${u.role==='leader' ? `<button onclick="removeLeader('${d.id}')" class="text-orange-500 hover:underline text-xs bg-orange-50 p-1 rounded">Gỡ Leader</button>` : ''}
+                                        <button onclick="toggleBlockUser('${d.id}', ${u.isBlocked})" class="${u.isBlocked ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'} text-xs p-1 rounded hover:underline font-bold w-20">
+                                            ${u.isBlocked ? 'Mở Khóa' : 'Khóa'}
+                                        </button>
+                                    </div>
+                                ` : '<span class="text-xs text-gray-400">Bạn</span>'}
+                            </td>
+                        </tr>
+                      `;
+                 });
+             });
+        };
+
+        window.loadActivityLogs = () => {
+            const tbody = document.getElementById('admin-log-list');
+            const q = query(collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity'), orderBy('ts', 'desc'), limit(50));
+            onSnapshot(q, snap => {
+                tbody.innerHTML = '';
+                if(snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center">Chưa có hoạt động nào.</td></tr>';
+                    return;
+                }
+                snap.forEach(d => {
+                    const log = d.data();
+                    const date = log.ts ? new Date(log.ts.toDate()).toLocaleString('vi-VN') : 'Vừa xong';
+                    
+                    let actionClass = "text-gray-600";
+                    if(log.action.includes('login')) actionClass = "text-green-600 font-bold";
+                    if(log.action.includes('block') || log.action.includes('demote')) actionClass = "text-red-600 font-bold";
+                    
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-gray-50 text-xs md:text-sm">
+                            <td class="p-3 whitespace-nowrap text-gray-500">${date}</td>
+                            <td class="p-3 font-bold">${log.name}</td>
+                            <td class="p-3 ${actionClass}">${log.action}</td>
+                            <td class="p-3 text-gray-600">${log.details || ''}</td>
+                        </tr>
+                    `;
+                });
+            });
+        };
+        
+        window.assignLeader = async (uid) => {
+            if(!confirm("Cấp quyền nhóm trưởng cho người này?")) return;
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), { role: 'leader' });
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { role: 'leader' });
+            toast("Đã thăng chức!", "success");
+            logActivity('promote_user', `Thăng chức Leader cho ${uid}`);
+            loadAdminStats();
+        };
+
+        window.removeLeader = async (uid) => {
+            if(!confirm("Bạn có chắc muốn gỡ quyền nhóm trưởng của người này?")) return;
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), { role: 'student' });
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { role: 'student' });
+            toast("Đã gỡ quyền nhóm trưởng!", "success");
+            logActivity('demote_user', `Gỡ quyền Leader của ${uid}`);
+            loadAdminStats();
+        };
+
+        window.toggleBlockUser = async (uid, currentStatus) => {
+            const action = currentStatus ? "MỞ KHÓA" : "KHÓA";
+            if(!confirm(`Bạn có chắc muốn ${action} tài khoản này?`)) return;
+            
+            const newStatus = !currentStatus;
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), { isBlocked: newStatus });
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { isBlocked: newStatus });
+            
+            toast(`Đã ${action} tài khoản thành công!`, newStatus ? "error" : "success");
+            logActivity('block_user', `${action} tài khoản ${uid}`);
+            loadAdminStats();
+        };
+
+        // --- SUBJECT & LEARNING LOGIC (UPDATED WITH 3 TABS) ---
+        // Global handler required by YouTube Iframe API
+        window.onYouTubeIframeAPIReady = () => { /* Player init handled on demand */ };
+
+        let currentSubjectData = {};
+
+        // Mock Data for demonstration
+        const mockSubjectData = {
+            'Toán': {
+                videos: [
+                    {t: 'Hàm số & Đồ thị', id: 'S3O8i_Q0dO8'}, 
+                    {t: 'Tích phân cơ bản', id: 'UNB8bA2q60Y'}
+                ],
+                docs: [
+                    {t: 'Đề cương ôn tập Toán 2026', url: 'https://docs.google.com/viewer?url=https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf&embedded=true'},
+                    {t: 'Công thức Lượng giác', url: 'https://docs.google.com/viewer?url=https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf&embedded=true'}
+                ],
+                exams: [
+                    {t: 'Đề thi thử THPTQG Toán Lần 1', url: 'https://taodethi.xyz/'}
+                ]
+            },
+            'Văn': {
+                videos: [{t: 'Phân tích Văn học', id: 'jNQXAC9IVRw'}],
+                docs: [{t: 'Sơ đồ tư duy Văn học', url: 'https://docs.google.com/viewer?url=https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf&embedded=true'}],
+                exams: [{t: 'Kiểm tra 15 phút', url: 'https://taodethi.xyz/'}]
+            },
+            // Fallback for others
+            'default': {
+                videos: [{t: 'Bài học mẫu', id: 'M7lc1UVf-VE'}],
+                docs: [{t: 'Tài liệu tham khảo', url: 'https://docs.google.com/viewer?url=https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf&embedded=true'}],
+                exams: [{t: 'Đề thi thử chung', url: 'https://taodethi.xyz/'}]
+            }
+        };
+
+        window.openSubject = (subj) => {
+            currentSubjectData = mockSubjectData[subj] || mockSubjectData['default'];
+            document.getElementById('detail-subject-title').innerText = `Môn ${subj}`;
+            
+            // Render Video List
+            document.getElementById('subj-content-video').innerHTML = currentSubjectData.videos.map((v, i) => `
+                <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow border hover:bg-gray-50 transition">
+                    <span class="font-bold text-gray-700">Bài ${i+1}: ${v.t}</span>
+                    <button onclick="playVideo('${v.id}')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow flex items-center gap-2"><i class="fas fa-play"></i> Học</button>
+                </div>
+            `).join('');
+
+            // Render Doc List
+            document.getElementById('doc-list').innerHTML = currentSubjectData.docs.map((d, i) => `
+                <div onclick="openDoc('${d.url}')" class="bg-white p-4 rounded-xl shadow border cursor-pointer hover:bg-orange-50 transition flex items-center gap-3">
+                    <i class="fas fa-file-pdf text-red-500 text-2xl"></i>
+                    <div>
+                        <div class="font-bold text-gray-700">${d.t}</div>
+                        <div class="text-xs text-gray-400">Nhấn để xem</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Exam List
+            document.getElementById('exam-list').innerHTML = currentSubjectData.exams.map((e, i) => `
+                 <div onclick="openExam('${e.url}')" class="bg-white p-4 rounded-xl shadow border cursor-pointer hover:bg-blue-50 transition flex items-center gap-3">
+                    <i class="fas fa-edit text-blue-600 text-2xl"></i>
+                    <div>
+                        <div class="font-bold text-gray-700">${e.t}</div>
+                        <div class="text-xs text-gray-400">Làm bài ngay</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Reset Tab to Video
+            switchSubjectTab('video');
+            nav('subject-detail');
+        };
+
+        window.switchSubjectTab = (tab) => {
+            const tabs = ['video', 'doc', 'exam'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-subj-${t}`);
+                const content = document.getElementById(`subj-content-${t}`);
+                if (t === tab) {
+                    btn.classList.add('border-b-2', 'border-indigo-600', 'text-indigo-600');
+                    btn.classList.remove('text-gray-500');
+                    content.classList.remove('hidden-section');
+                } else {
+                    btn.classList.remove('border-b-2', 'border-indigo-600', 'text-indigo-600');
+                    btn.classList.add('text-gray-500');
+                    content.classList.add('hidden-section');
+                }
+            });
+        };
+
+        // --- PDF & EXAM VIEWER ---
+        window.openDoc = (url) => {
+            document.getElementById('doc-list').classList.add('hidden-section');
+            document.getElementById('doc-viewer').classList.remove('hidden');
+            document.getElementById('pdf-frame').src = url;
+        };
+        window.closeDocViewer = () => {
+             document.getElementById('pdf-frame').src = '';
+             document.getElementById('doc-viewer').classList.add('hidden');
+             document.getElementById('doc-list').classList.remove('hidden-section');
+        };
+
+        window.openExam = (url) => {
+            document.getElementById('exam-list').classList.add('hidden-section');
+            document.getElementById('exam-viewer').classList.remove('hidden');
+            document.getElementById('exam-frame').src = url;
+        };
+        window.closeExamViewer = () => {
+             document.getElementById('exam-frame').src = '';
+             document.getElementById('exam-viewer').classList.add('hidden');
+             document.getElementById('exam-list').classList.remove('hidden-section');
+        };
+
+
+        // --- VIDEO PLAYER (STRICT MODE IMPLEMENTATION) ---
+        window.playVideo = (vidId) => {
             document.getElementById('video-modal').classList.remove('hidden');
-            maxWatchedTime = 0; window.videoCompletedFlag = false;
-            if(player && player.loadVideoById) { player.loadVideoById(id); player.unMute(); }
-            else setTimeout(() => { if(player) player.loadVideoById(id); }, 1000);
-        };
-        window.closeVideoModal = () => {
-            document.getElementById('video-modal').classList.add('hidden');
-            if(player) player.stopVideo();
-            stopVideoTracking();
-        };
-        window.togglePlayPause = () => {
-            if(player.getPlayerState() == 1) player.pauseVideo(); else player.playVideo();
-        };
-        window.unmuteVideo = () => { player.unMute(); document.getElementById('mute-warning').classList.add('hidden'); };
-        window.toggleFullscreen = () => {
-            const el = document.getElementById('fullscreen-container');
-            if(!document.fullscreenElement) el.requestFullscreen(); else document.exitFullscreen();
-        }
-
-        // --- EXAM (THI ONLINE) ---
-        window.openExamModal = (url, title) => {
-            document.getElementById('exam-modal-title').innerText = title;
-            document.getElementById('exam-iframe').src = url;
-            document.getElementById('exam-loading').style.display = 'flex';
-            document.getElementById('exam-modal').classList.remove('hidden');
-        };
-        window.closeExamModal = () => {
-            if(confirm("Bạn có chắc muốn kết thúc bài thi?")) {
-                document.getElementById('exam-modal').classList.add('hidden');
-                document.getElementById('exam-iframe').src = "";
+            if(player) {
+                player.loadVideoById(vidId);
+            } else {
+                player = new YT.Player('youtube-player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: vidId,
+                    playerVars: { 
+                        'playsinline': 1,
+                        'controls': 0,      // DISABLE NATIVE CONTROLS (Hide seek bar, volume)
+                        'disablekb': 1,     // DISABLE KEYBOARD (No arrow keys to seek)
+                        'fs': 0,            // DISABLE FULLSCREEN (Prevent escaping constraints)
+                        'modestbranding': 1,
+                        'rel': 0
+                    },
+                    events: {
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
             }
+            logActivity('watch_video', `Xem video ID: ${vidId}`);
         };
-
-        // --- DATA & LOGIC ---
-        function loadProgress() {
-            if (!userData) return;
-            ['toan', 'ly', 'hoa'].forEach(s => {
-                const v = userData.progress[s] || 0;
-                document.getElementById(`progress-${s}`).style.width = `${v}%`;
-                document.getElementById(`text-progress-${s}`).innerText = `${v}%`;
-            });
+        
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                videoTimer = setInterval(strictVideoLoop, 1000);
+            } else {
+                clearInterval(videoTimer);
+            }
         }
+        
+        function strictVideoLoop() {
+            if(!player || !player.getDuration) return;
 
-        async function updateSubjectProgress(amount) {
-            const subj = currentSubject;
-            const newP = Math.min((userData.progress[subj] || 0) + amount, 100);
-            userData.progress[subj] = newP;
+            // 1. UPDATE PROGRESS UI
+            const currentTime = player.getCurrentTime();
+            const duration = player.getDuration();
+            const percent = (currentTime / duration) * 100;
+            document.getElementById('video-bar').style.width = percent + '%';
+            document.getElementById('video-percent').innerText = Math.round(percent) + '%';
             
-            // Cập nhật cả private profile VÀ public directory (cho Admin xem)
-            await updateDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'info'), { [`progress.${subj}`]: newP });
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users_directory', currentUser.uid), { [`progress.${subj}`]: newP });
-            loadProgress();
-        }
+            const min = Math.floor(currentTime / 60);
+            const sec = Math.floor(currentTime % 60);
+            document.getElementById('video-time').innerText = `${min}:${sec < 10 ? '0'+sec : sec}`;
 
-        let currentSubject = '';
-        function loadSubject(subject) {
-            currentSubject = subject;
-            const data = {
-                toan: {
-                    videos: [
-                        {title: "Hàm số Lũy thừa", url: "https://www.youtube.com/watch?v=S3O8i_Q0dO8", author: "Thầy A"},
-                        {title: "Khảo sát hàm số", url: "https://www.youtube.com/watch?v=D-yVqX-iW4U", author: "Thầy B"}
-                    ],
-                    exams: [
-                        {title: "Đề thi thử Toán 2026 (Online)", url: "https://taodethi.xyz/exam/demo-math", source: "TaoDeThi.xyz"}
-                    ]
-                },
-                ly: { videos: [], exams: [] },
-                hoa: { videos: [], exams: [] }
-            }[subject];
-
-            const container = document.getElementById('subject-content-list');
-            container.innerHTML = '';
-
-            // Render Videos
-            if(data.videos.length > 0) {
-                container.innerHTML += `<h3 class="font-bold text-lg mb-2 text-blue-700">Bài Giảng Video</h3>`;
-                data.videos.forEach((v, i) => {
-                    container.innerHTML += `
-                        <div class="flex justify-between items-center p-3 border rounded mb-2 hover:bg-gray-50">
-                            <div onclick="openVideoModal('${v.url}', '${v.title}')" class="cursor-pointer flex items-center">
-                                <i class="fas fa-play-circle text-blue-500 text-2xl mr-3"></i>
-                                <div><div class="font-bold">Bài ${i+1}: ${v.title}</div><div class="text-xs text-gray-500">${v.author}</div></div>
-                            </div>
-                            <button onclick="openVideoModal('${v.url}', '${v.title}')" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Học Ngay</button>
-                        </div>`;
-                });
-            }
-
-            // Render Exams
-            if(data.exams.length > 0) {
-                container.innerHTML += `<h3 class="font-bold text-lg mt-6 mb-2 text-red-700">Thi Trực Tuyến</h3>`;
-                data.exams.forEach(e => {
-                    container.innerHTML += `
-                        <div class="flex justify-between items-center p-3 border border-red-200 bg-red-50 rounded mb-2">
-                            <div class="flex items-center">
-                                <i class="fas fa-file-signature text-red-500 text-2xl mr-3"></i>
-                                <div><div class="font-bold">${e.title}</div><div class="text-xs text-gray-500">${e.source}</div></div>
-                            </div>
-                            <button onclick="openExamModal('${e.url}', '${e.title}')" class="bg-red-600 text-white px-3 py-1 rounded text-sm">Làm Bài Ngay</button>
-                        </div>`;
-                });
+            // 2. ENFORCE NO MUTE (ANTI-MUTE)
+            if (player.isMuted()) {
+                player.unMute(); // Force unmute immediately
+                // Optional: Show warning or toast if needed, but instant unmute is effective
             }
         }
 
-        // --- ADMIN & CHAT ---
-        // Chat Logic
-        let chatUnsubscribe;
-        function loadChat() {
-            const chatBox = document.getElementById('chat-box');
-            chatUnsubscribe = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'group_chat'), orderBy('createdAt', 'asc')), s => {
-                chatBox.innerHTML = '';
-                s.forEach(d => {
-                    const m = d.data();
-                    const isMe = m.uid === currentUser.uid;
-                    chatBox.innerHTML += `<div class="flex ${isMe ? 'justify-end' : 'justify-start'}"><div class="rounded p-2 text-sm max-w-[70%] ${isMe ? 'bg-blue-500 text-white' : 'bg-gray-200'}"><strong>${m.email.split('@')[0]}</strong>: ${m.text}</div></div>`;
-                });
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-        }
-        window.sendChat = async () => {
-            const txt = document.getElementById('chat-input').value;
-            if(!txt) return;
-            if(userData.isBlocked) { alert("Bạn bị khóa chat!"); return; }
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_chat'), { text: txt, uid: currentUser.uid, email: currentUser.email, createdAt: serverTimestamp() });
-            document.getElementById('chat-input').value = '';
-        }
+        window.closeVideoModal = () => {
+             document.getElementById('video-modal').classList.add('hidden');
+             if(player && player.stopVideo) player.stopVideo();
+             clearInterval(videoTimer);
+        };
 
-        // Admin Logic
-        window.loadUserList = async () => {
-            if(userData.role !== 'admin') return;
-            const tbody = document.getElementById('user-list-body');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Loading...</td></tr>';
-            const s = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'users_directory')));
-            tbody.innerHTML = '';
-            s.forEach(d => {
-                const u = d.data();
-                const p = u.progress || {toan:0, ly:0, hoa:0};
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-3 font-bold text-blue-900">${u.email}</td>
-                        <td class="p-3 text-center bg-blue-50">${p.toan}%</td>
-                        <td class="p-3 text-center bg-purple-50">${p.ly}%</td>
-                        <td class="p-3 text-center bg-green-50">${p.hoa}%</td>
-                        <td class="p-3"><span class="px-2 py-1 rounded text-xs ${u.isBlocked ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">${u.isBlocked ? 'Bị Khóa' : 'Hoạt Động'}</span></td>
-                        <td class="p-3">
-                            ${u.role !== 'admin' ? `<button onclick="toggleBlock('${d.id}', ${!u.isBlocked})" class="border border-red-500 text-red-500 px-2 py-1 text-xs rounded hover:bg-red-50">${u.isBlocked ? 'Mở Khóa' : 'Khóa Ngay'}</button>` : ''}
-                        </td>
-                    </tr>`;
-            });
-        }
-        window.toggleBlock = async (uid, status) => {
-            if(!confirm("Hành động này sẽ Kick user ra khỏi hệ thống ngay lập tức. Tiếp tục?")) return;
-            // Update cả private profile (để login check) và public directory (để hiển thị list)
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users_directory', uid), { isBlocked: status });
-            try { await updateDoc(doc(db, 'artifacts', appId, 'users', uid, 'profile', 'info'), { isBlocked: status }); } catch(e){}
-            loadUserList();
-        }
-
-        function showToast(msg, type) {
+        function toast(msg, type='info') {
             const t = document.createElement('div');
-            t.className = `p-3 rounded text-white shadow mb-2 fade-in ${type==='error'?'bg-red-500':'bg-green-500'}`;
-            t.innerText = msg;
+            t.className = `p-4 rounded-lg text-white shadow-xl fade-in flex items-center ${type==='error'?'bg-red-500':'bg-green-600'}`;
+            t.innerHTML = `<i class="fas ${type==='error'?'fa-exclamation-circle':'fa-check-circle'} mr-2"></i> ${msg}`;
             document.getElementById('toast-container').appendChild(t);
-            setTimeout(()=>t.remove(), 3000);
+            setTimeout(() => t.remove(), 3000);
         }
+        
+        window.simulateVoiceMsg = () => toast('Tính năng Voice Chat đang bảo trì.', 'info');
+
     </script>
 </body>
 </html>
