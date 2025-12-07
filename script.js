@@ -762,7 +762,44 @@ const mockSubjectData = {
         exams: [{ t: 'Đề nghị luận xã hội tháng 10', url: '#' }]
     },
     'Anh': {
-        videos: [],
+        videos: [
+    // --- CHUYÊN ĐỀ 1: LÝ THUYẾT THÌ VÀ TỔNG QUAN ---
+    { t: 'Lý thuyết Thì P1', id: 'RhTBbwdubCE' },
+    { t: 'Lý thuyết Thì P2', id: '7zmvNiTciPE' },
+    { t: 'Lý thuyết Thì P3', id: 'FiFAds-igmo' },
+    { t: 'Tổng hợp 12 thì tiếng Anh', id: 'bCngYqYPTGo' },
+
+    // --- CHUYÊN ĐỀ 2: NGỮ PHÁP & TỪ VỰNG TRỌNG ĐIỂM ---
+    { t: 'Ngữ pháp trọng điểm P1', id: 'PtwEG_HTpZc' }, // (Bao gồm Từ vựng trọng điểm)
+    { t: 'Ngữ pháp trọng điểm P2', id: 'DIGnztUiS14' },
+    { t: 'Cụm động từ (Phrasal Verbs)', id: '3pl8SDVMrOI' },
+    { t: 'Từ loại (Word Forms)', id: 'U9dJhVPc22E' },
+    { t: 'Dạng bài Sắp xếp lá thư/câu P1', id: 'ccF4h-a9Ax0' },
+    { t: 'Dạng bài Sắp xếp lá thư/câu P2', id: '6F7OSNcC_z0' },
+    { t: 'Dạng bài Điền thông báo quảng cáo', id: 'i5g1256BPbE' },
+
+    // --- CHUYÊN ĐỀ 3: KHÓA HỌC LẤY GỐC CẤP TỐC ---
+    { t: 'Lấy gốc cấp tốc P1', id: 'Jlo1LZH-JZM' },
+    { t: 'Lấy gốc cấp tốc P2', id: 'xFba8DGAZyU' },
+    { t: 'Lấy gốc cấp tốc P3', id: 'WvuHUJKJ-sE' },
+    { t: 'Lấy gốc cấp tốc P4', id: 'GbquI1EYiu4' },
+    { t: 'Lấy gốc cấp tốc P5', id: '_VgDH1GWO2w' },
+    { t: 'Lấy gốc cấp tốc P6', id: 'QW44ppTRTw8' },
+    { t: 'Lấy gốc cấp tốc P7', id: 'O5D401AgJaw' },
+    { t: 'Lấy gốc cấp tốc P8', id: 'X1JO1Yrg6YA' },
+
+    // --- CHUYÊN ĐỀ 4: LUYỆN ĐỀ THI ---
+    { t: 'Luyện đề thi số 1', id: 'fX8-yvGz7fc' },
+    { t: 'Luyện đề thi số 2', id: 'hSgN6jsl48w' },
+    { t: 'Luyện đề thi số 3', id: '4Cjc67pk_kA' },
+    { t: 'Luyện đề thi số 4', id: 'n7zxmgpgZAU' },
+    { t: 'Luyện đề thi số 5', id: '1TjNhxA7QL4' },
+    { t: 'Luyện đề thi số 6', id: 'ICvrDOrNxzA' },
+    { t: 'Luyện đề thi số 7', id: 'Nvy7mIGsCSE' },
+    { t: 'Luyện đề thi số 8', id: 'u6FTyVsJNZA' },
+    { t: 'Luyện đề thi số 9', id: 'eBhzB5hfC0w' },
+    { t: 'Luyện đề thi số 10', id: 'DTjDjX_9zcw' }
+],
         docs: [
             { t: 'Chuyên Đề Từ Vựng Nâng Cao Tiếng Anh 12 Ôn Thi Tốt Nghiệp THPT', url: 'https://drive.google.com/file/d/14E8vDzX21I7T11vL8nwTWqpdeQZU0EYd/view?usp=sharing' }
           
@@ -846,4 +883,5 @@ window.playVideo = (vidId) => { /* Code cũ giữ nguyên */
 function onPlayerStateChange(event) { if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); else clearInterval(videoTimer); }
 function strictVideoLoop() { if(!player || !player.getDuration) return; const cur = player.getCurrentTime(), dur = player.getDuration(), per = (cur/dur)*100; document.getElementById('video-bar').style.width = per + '%'; document.getElementById('video-percent').innerText = Math.round(per) + '%'; const m = Math.floor(cur/60), s = Math.floor(cur%60); document.getElementById('video-time').innerText = `${m}:${s<10?'0'+s:s}`; if (player.isMuted()) player.unMute(); }
 window.closeVideoModal = () => { document.getElementById('video-modal').classList.add('hidden'); if(player && player.stopVideo) player.stopVideo(); clearInterval(videoTimer); };
+
 
