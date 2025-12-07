@@ -610,9 +610,102 @@ window.loadActivityLogs = () => { onSnapshot(query(collection(db, 'artifacts', A
 const mockSubjectData = {
     'Toán': {
         videos: [
-            { t: 'Hàm số lũy thừa', id: 'S3O8i_Q0dO8' },
-            { t: 'Khảo sát hàm số', id: 'M7lc1UVf-VE' }
-        ],
+    // --- CHUYÊN ĐỀ 1: ỨNG DỤNG THỰC TẾ (TOÁN 12) ---
+    { t: 'Ứng dụng đạo hàm toán thực tế P1', id: 'j4OK3ihNk_8' },
+    { t: 'Ứng dụng đạo hàm toán thực tế P2', id: 'Mm8VmEU_ZnM' },
+    { t: 'Ứng dụng đạo hàm toán thực tế P3', id: 'epoJkAC81LA' },
+    { t: 'Ứng dụng đạo hàm toán thực tế P4', id: '2ZXd09Csx4M' },
+    { t: 'Ứng dụng đạo hàm toán thực tế P5', id: 'KVRiMu1ckPQ' },
+    { t: 'Ứng dụng đạo hàm toán thực tế P6', id: 'KrrJcuVwEH0' },
+    { t: 'Ứng dụng vecto thực tế', id: 'IrIQQSiTX7c' },
+    { t: 'Ứng dụng tích phân thực tế P1', id: '1T9G9Ihinq8' },
+    { t: 'Ứng dụng tích phân thực tế P2', id: 'p1-5Ok7q2qk' },
+    { t: 'Ứng dụng tích phân thực tế P3', id: 'Lrp2ErdzOsY' },
+    { t: 'Hình không gian thực tế P1', id: 'OlVXRRajh28' }, // Đã xếp lại thứ tự P1
+    { t: 'Hình không gian thực tế P2', id: 'G9SRQVUrvxY' },
+    { t: 'Hình không gian thực tế P3', id: 'WYYvgmtzM00' },
+
+    // --- CHUYÊN ĐỀ 2: HÀM SỐ & KHẢO SÁT HÀM SỐ ---
+    { t: 'Tính đơn điệu của hàm số', id: 'zsxktJWNxVI' },
+    { t: 'Cực trị của hàm số', id: 'BbFj2KgZy6Q' },
+    { t: 'Giá trị lớn nhất – Giá trị nhỏ nhất', id: 'WsMJEaCQsoA' },
+    { t: 'Đường tiệm cận', id: 'o6g5ZpOczLc' },
+    { t: 'Khảo sát và vẽ đồ thị', id: '990wEB5yo2k' },
+    { t: 'Đơn điệu chứa tham số', id: 'g7InuFPi7Yo' },
+    { t: 'Cực trị chứa tham số', id: 'hSe9VbM95o4' },
+    { t: 'Tiệm cận chứa tham số', id: 'jqKJAmWblEc' },
+
+    // --- CHUYÊN ĐỀ 3: NGUYÊN HÀM & TÍCH PHÂN (LÝ THUYẾT & PHƯƠNG PHÁP) ---
+    { t: 'Nguyên hàm cơ bản và công thức nguyên hàm', id: 'j615s9znk4U' },
+    { t: 'Nguyên hàm thường gặp', id: '7urfQ8s20oY' },
+    { t: 'Các phương pháp tìm nguyên hàm', id: 'DGD40tAWAjk' },
+    { t: 'Phương pháp biến đổi nguyên hàm P1', id: 'FvzxF99LvR0' },
+    { t: 'Phương pháp biến đổi nguyên hàm P2', id: 'bpTkSKB21FQ' },
+    { t: 'Phương pháp biến đổi nguyên hàm P3', id: 'pruobOzUaZE' },
+    { t: 'Nguyên hàm từng phần P1', id: '4_OACc2R8J8' },
+    { t: 'Nguyên hàm từng phần P2', id: 'S04zczlyd04' }, // Đã gom P2 về gần P1
+    { t: 'Nguyên hàm số vô tỉ', id: 'grvjJCPElw4' },
+    { t: 'Nguyên hàm vi phân', id: 'UqjcQFls4jE' },
+    { t: 'Nguyên hàm đa thức', id: 'lH2tCeCbWdI' },
+    { t: 'Nguyên hàm phân thức', id: '-GEbsBlsm-c' },
+    { t: 'Nguyên hàm số mũ', id: 'r4Rf8a5SE2U' },
+    { t: 'Phương trình vi phân (NH-TP)', id: 'PY5J_Y3fjjM' },
+    { t: 'Vận dụng cao nguyên hàm', id: 'orbwtuj_K1w' },
+    { t: 'Nguyên hàm full dạng', id: 'JXtw8WtdkEg' },
+    
+    // --- CHUYÊN ĐỀ 4: TÍCH PHÂN & ỨNG DỤNG ---
+    { t: 'Tích phân', id: 'cNDQkKzfsfw' },
+    { t: 'Ứng dụng tích phân P1', id: 'U70aHEdl8sY' },
+    { t: 'Ứng dụng tích phân P2', id: 'X9GI7LpnWwA' },
+    { t: 'Ứng dụng tích phân P3', id: 'wIfTTYnWsCg' },
+    { t: 'Ứng dụng tích phân P4', id: 'FfNGMIab_VA' },
+    { t: 'Ứng dụng hình học của tích phân', id: '4DE9Cz-e2mo' },
+    { t: 'Tích phân hàm ẩn', id: 'jRdqkSb88vE' },
+    { t: 'Tích phân hàm trị tuyệt đối', id: 'MIwukaeWuVs' },
+    { t: 'Diện tích đường cong đặc biệt (NH-TP)', id: 'xMxrawY-eBA' },
+    { t: 'Vận dụng cao tích phân', id: 'hMkcuuCfTIw' },
+    { t: 'Phương pháp chéo hóa (NH-TP)', id: 'SuerH0sP30w' },
+    { t: 'Giải toán maxmin (NH-TP)', id: 'tL4tkwqo3gc' },
+
+    // --- CHUYÊN ĐỀ 5: HÌNH HỌC OXYZ (VECTO & TỌA ĐỘ) ---
+    { t: 'Vecto trong không gian', id: 'phvpqxLNTUQ' },
+    { t: 'Tích vô hướng và góc giữa hai vecto', id: '7XaLq6-i3T8' },
+    { t: 'Hệ trục Oxyz', id: 'uzN97cFH1II' },
+    { t: 'Biểu thức tọa độ vecto trong không gian', id: 'G-9G2nDnwqA' },
+    { t: 'Tọa độ điểm, tọa độ vecto', id: '4vaNd0hCoIA' },
+    { t: 'Hình không gian, tích có hướng', id: 'FiK4WDKmqWE' },
+    { t: 'Cách bấm máy tích vô hướng, tích có hướng', id: 'ufmbgu4FQeE' },
+    { t: 'Vecto trong không gian full dạng', id: '1ktkwWXTsAs' },
+    { t: 'Ôn tọa độ vecto đề 1', id: 'uwcmSp-WsZY' },
+    { t: 'Ôn tọa độ vecto đề 2', id: 'CotrgHdPpvU' },
+    { t: 'Ôn tọa độ vecto đề 3', id: 'UL0LyL6YVMk' },
+
+    // --- CHUYÊN ĐỀ 6: MẶT PHẲNG, ĐƯỜNG THẲNG, MẶT CẦU ---
+    { t: 'Phương trình mặt phẳng', id: 'nnMrv6ZGgIE' },
+    { t: 'Pt mặt phẳng (Video 2)', id: 'PqZefHWRy5k' },
+    { t: 'Ôn tập pt mặt phẳng', id: 'w3zfFjKbqfs' },
+    { t: 'Phương trình đường thẳng P1', id: 'Zey1a4zUDVg' },
+    { t: 'Phương trình đường thẳng P2', id: 'zB9PoS_5UXs' },
+    { t: 'Phương trình mặt cầu', id: 'QTkfXTLyesk' },
+    { t: 'Kỹ thuật trải phẳng hình', id: '850ZqO8D_oA' },
+
+    // --- CHUYÊN ĐỀ 7: GÓC, KHOẢNG CÁCH & VẬN DỤNG CAO HÌNH HỌC ---
+    { t: 'Góc và khoảng cách P1', id: 'GbZxmfrD6j0' },
+    { t: 'Góc và khoảng cách P2', id: 'JeHJAhQxS04' },
+    { t: 'Phương pháp Gán trục tọa độ P1', id: 'i_-elkt7hE0' },
+    { t: 'Phương pháp Gán trục tọa độ P2', id: 'RgsUcoGnD-c' },
+    { t: 'Phương pháp Gán trục tọa độ P3', id: 'gS1_B__tE9Y' },
+    { t: 'Cực trị hình học Maxmin', id: '42HdEgCcAmU' },
+    { t: 'Tâm tỉ cự', id: 'ulZYfnAWkRo' },
+
+    // --- CHUYÊN ĐỀ 8: XÁC SUẤT & THỐNG KÊ ---
+    { t: 'Khoảng biến thiên và khoảng tứ phân vị', id: '1Z_YVju9-fk' },
+    { t: 'Mẫu số liệu ghép nhóm và các số xu thế đặc trưng', id: 'Z2ssSY4atIA' },
+    { t: 'Xác suất có điều kiện', id: '73Ft8fDSc3c' },
+    { t: 'Xác suất toàn phần', id: '2ZsjfFccH0s' },
+    { t: 'Công thức Bayes xác suất', id: 'ZN4LSnQLEyc' },
+    { t: 'Xác suất tổng hợp kiến thức ba khối', id: 'p-qb67DCrAE' }
+],
         docs: [
             
            { t: '50 đề thi minh họa', url: 'https://drive.google.com/file/d/1RyXb7KnEsX2uXgOQFq4Pn8WqxO0anGtA/preview' }
