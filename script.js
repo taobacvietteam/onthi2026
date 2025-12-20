@@ -800,11 +800,66 @@ const mockSubjectData = {
     { t: 'Luyện đề thi số 9', id: 'eBhzB5hfC0w' },
     { t: 'Luyện đề thi số 10', id: 'DTjDjX_9zcw' }
 ],
-        docs: [
-            { t: 'Chuyên Đề Từ Vựng Nâng Cao Tiếng Anh 12 Ôn Thi Tốt Nghiệp THPT', url: 'https://drive.google.com/file/d/14E8vDzX21I7T11vL8nwTWqpdeQZU0EYd/view?usp=sharing' }
-          
-
-                               ],
+        docs:[
+  { t: '26. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 904)', url: 'https://drive.google.com/file/d/10BqzpE6H49Ba-aYl9OLJVcCDnwb9CJrX/preview' },
+  { t: '24. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 902)', url: 'https://drive.google.com/file/d/10Qcf0Nr4V14Zz9EpUOSeHelmtqKDaHGa/preview' },
+  { t: '16. THPT Mỹ Đức B - Hà Nội', url: 'https://drive.google.com/file/d/10dRse0kuZwgtEcSgyxxe3XrCdvPEVMla/preview' },
+  { t: '11. Chuyên Võ Nguyên Giáp - Quảng Bình', url: 'https://drive.google.com/file/d/10lzPKSu_yyefVDdnyiTGG8CA8kSkcH-L/preview' },
+  { t: '56. THPT Chuyên Hạ Long - Quảng Ninh', url: 'https://drive.google.com/file/d/13y77hlAzdF86koWrMhJ2IGxU4tyk2Pob/preview' },
+  { t: '27. THPT Chuyên Bình Long - Bình Phước', url: 'https://drive.google.com/file/d/164VWvDTvUEuaqabDYNETyY23qKTUvNoi/preview' },
+  { t: '35. Cụm Chuyên môn số 3 - Đắk Lắk', url: 'https://drive.google.com/file/d/16DuDvpZ4NqBZIlzLbQVEMIQsziB8mlIG/preview' },
+  { t: '37. Sở giáo dục và đào tạo Tuyên Quang - Mã đề chẵn', url: 'https://drive.google.com/file/d/16vy1aj8dLnoBD65Op68g-oomF3KwQ1SM/preview' },
+  { t: '46. Cụm liên trường THPT Quảng Nam', url: 'https://drive.google.com/file/d/17Nk4W7IzRR-R99UCJ5MomTWN0Od5hfKb/preview' },
+  { t: '40. THPT Hậu Lộc 1 - Thanh Hóa', url: 'https://drive.google.com/file/d/17guOpgNJqcOcAk3fMrayPR87przxrQ1m/preview' },
+  { t: '13. THPT Chuyên Quang Trung - Bình Phước - Lần 1', url: 'https://drive.google.com/file/d/18SSohnDiIj44bbPFlwiHjPVb5BJGDUud/preview' },
+  { t: '51. Sở giáo dục và đào tạo Phú Thọ', url: 'https://drive.google.com/file/d/1A96krNuqNpGuYpJ3_Qws7_MzrrudO4r-/preview' },
+  { t: '49. THPT Thuận Thành 1&2 - Bắc Ninh (Mã đề lẻ)', url: 'https://drive.google.com/file/d/1AgnB3RWLBfvBPGSxZB-r_Ok5Z9IqyMqq/preview' },
+  { t: '36. Sở giáo dục và đào tạo Bắc Giang', url: 'https://drive.google.com/file/d/1EHRpLV6Qf7ieBKyUYBgqUuCrWwI-P4p4/preview' },
+  { t: '4. Sở giáo dục và đào tạo Ninh Bình (Mã đề lẻ)', url: 'https://drive.google.com/file/d/1F9wI0-BtQycSEes6UioBIm6wS48dpn37/preview' },
+  { t: '31. THPT Chuyên Nguyễn Tất Thành - Kon Tum', url: 'https://drive.google.com/file/d/1HtmWpqEgWnktm4LcSuUzC1aZa5TX_pXc/preview' },
+  { t: '20. THCS - THPT Nguyễn Khuyến - TP.HCM', url: 'https://drive.google.com/file/d/1IWa4sIcaqecXa019RroSwcdZY0oYTVRX/preview' },
+  { t: '34. THPT Đào Duy Từ - Thanh Hóa (Lần 2)', url: 'https://drive.google.com/file/d/1JJJwIVvTSU439zUN1sEvr8FH1TpfzWa9/preview' },
+  { t: '3. THPT Ngô Gia Tự - Vĩnh Phúc - Lần 1', url: 'https://drive.google.com/file/d/1JdXN6yyz0uy7HTQ9xaHbES33JbgH4vYE/preview' },
+  { t: '44. THPT Lê Lợi - Thanh Hóa', url: 'https://drive.google.com/file/d/1K6i791d03Cw8Tx7w0hvj4Y3E_MUppuqb/preview' },
+  { t: '33. THPT Thành Đông - Hải Dương', url: 'https://drive.google.com/file/d/1KbbbZdbNAWr4CcxrPnM1cq2uhxwLfjpN/preview' },
+  { t: '48. Liên trường THPT Hải Phòng', url: 'https://drive.google.com/file/d/1LFNRHjLzPU7jvgnnoNJ8_uJ-YT8Ub28G/preview' },
+  { t: '41. Cụm các trường Phía Nam Hưng Yên', url: 'https://drive.google.com/file/d/1LwwGy3BNG32oDoho7bNFw_6XmgjHBOJy/preview' },
+  { t: '32. THPT Chuyên Đại học Vinh - Nghệ An', url: 'https://drive.google.com/file/d/1MQl4FxKJYqShKoRbLCQCoYr_yaga6lWZ/preview' },
+  { t: '30. THPT Chuyên Trần Phú - Hải Phòng', url: 'https://drive.google.com/file/d/1N3gdKtrwFl2KJZyW5OF0pjuT6SGPyWAF/preview' },
+  { t: '52. Sở giáo dục và đào tạo Thanh Hóa', url: 'https://drive.google.com/file/d/1Nxeo93-7vWErWApP2Ka-kjmBOa8IBDya/preview' },
+  { t: '6. THPT Thuận Thành 3 - Bắc Ninh (Mã đề chẵn)', url: 'https://drive.google.com/file/d/1Pn5rCvz4GoGgDfSunp1M4BWiTYTAIHR1/preview' },
+  { t: '9. Chuyên Vĩnh Phúc (Lần 1)', url: 'https://drive.google.com/file/d/1QBxMMYCJq5L1Q_AzB2azwNE5f9RYb98Q/preview' },
+  { t: '5. THPT Sơn Thịnh - Yên Bái', url: 'https://drive.google.com/file/d/1QUIJd4tlBsQ7jP7BFoygN_uSkjpQWZhr/preview' },
+  { t: '38. Sở giáo dục và đào tạo Tuyên Quang - Mã đề lẻ', url: 'https://drive.google.com/file/d/1T2v8PnBPtRJtzctyk4txVH9hBjaOZZug/preview' },
+  { t: '50. THPT Ba Đình - Thanh Hóa', url: 'https://drive.google.com/file/d/1TYG-zvFbbu-SQNQyEjxfwK4_42FWI9DZ/preview' },
+  { t: '28. THPT Chuyên Chu Văn An - Lạng Sơn', url: 'https://drive.google.com/file/d/1V-WVAAKKTxL09CInIfhZ16p_0t2kTh3b/preview' },
+  { t: '18. THPT Nguyễn Trãi (Thường Tín - Hà Nội)', url: 'https://drive.google.com/file/d/1VzecWlay8LSESek1JnpMA2c3IBTy-8jW/preview' },
+  { t: '21. Cụm Liên trường THPT Hải Dương', url: 'https://drive.google.com/file/d/1ZE6HSk4UM5yTHbbieBgL5UP5TANjtKrQ/preview' },
+  { t: '1. THPT Kỳ Anh - Hà Tĩnh', url: 'https://drive.google.com/file/d/1_PY6Upvydqysv9PvasEKDRB0N0IFTtPZ/preview' },
+  { t: '8. THPT Gò Công Đông - Tiền Giang', url: 'https://drive.google.com/file/d/1a1zSHtbXTQlZRl1uXqmJ_bbPG03HF1QG/preview' },
+  { t: '2. THPT Chuyên Nguyễn Tất Thành - Yên Bái', url: 'https://drive.google.com/file/d/1b2c9GE9A1f9fJjmL0a01lm3NuaAT8IGa/preview' },
+  { t: '45. THPT Tuệ Tĩnh - Hải Dương', url: 'https://drive.google.com/file/d/1b3hZIY4h0a61mkzDd6teaaIBZ-PZTM1Y/preview' },
+  { t: '55. THPT Chuyên Lê Thánh Tông - Quảng Nam', url: 'https://drive.google.com/file/d/1bWnxOLEf0LbThueXpdG1745Jw5766zCf/preview' },
+  { t: '10. Sở giáo dục và đào tạo Yên Bái (Mã lẻ)', url: 'https://drive.google.com/file/d/1cMwGlXrhYR6xzBCh_teBdyKEN5KGPIi8/preview' },
+  { t: '5. THPT Sơn Thịnh - Yên Bái (Bản 2)', url: 'https://drive.google.com/file/d/1dKcAUueGYlIECcv9FPV2D6IpaOZMhguC/preview' },
+  { t: '43. Cụm liên trường THPT Nam Đàn - Thái Hòa (Nghệ An)', url: 'https://drive.google.com/file/d/1e0YAnGGiZmNelV2FS9BYBaP9Gv0dMsl5/preview' },
+  { t: '42. Cụm các trường THPT tỉnh Hải Dương', url: 'https://drive.google.com/file/d/1hG9ZB95UVhhaGc-vewzI1qjvou29sxzp/preview' },
+  { t: '47. Cụm liên trường THPT Thanh Hóa', url: 'https://drive.google.com/file/d/1jZtvCO6O-vUH6sRRmbMBGEZ24CRwNOox/preview' },
+  { t: '7. Chuyên Phan Bội Châu – Nghệ An', url: 'https://drive.google.com/file/d/1lodDpTCoIvr8ZXEwXMR36uhq22V_BvyP/preview' },
+  { t: '19. THPT Nghèn - Hà Tĩnh', url: 'https://drive.google.com/file/d/1mm2k4MtUjEEskW1c9gX4mlYxxbO6CHnL/preview' },
+  { t: '17. THPT Kinh Môn - Hải Dương', url: 'https://drive.google.com/file/d/1mvuktIfP2tqXxAoqxPEZPsgAjpNW5BTo/preview' },
+  { t: '12. THPT Nguyễn Khuyến - Bình Dương', url: 'https://drive.google.com/file/d/1nFqoH7rcD4u6urzCF9pf288EojDH78Rd/preview' },
+  { t: '22. Sở giáo dục và đào tạo Bắc Ninh', url: 'https://drive.google.com/file/d/1oJAAaqjjojcBr4sOtAJgwvDPgIbGSN46/preview' },
+  { t: '25. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 903)', url: 'https://drive.google.com/file/d/1oYHnf3yqVJUuI09GYArd0Y670Ya4tzOT/preview' },
+  { t: '23. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 901)', url: 'https://drive.google.com/file/d/1ol4u8ZemsNJ8b54F2pw8-4uCNHd7AEce/preview' },
+  { t: '14. THPT Nguyễn Quang Diệu - Đồng Tháp - Lần 1', url: 'https://drive.google.com/file/d/1pPkvoJKi7S_QyTJ4SJJplj6F9W6mC7XC/preview' },
+  { t: '15. THPT Hoàng Văn Thụ - Hà Nội - Lần 1', url: 'https://drive.google.com/file/d/1rKAsBcCvl2PmkcgqZ5RUUmjw4PsQRjFs/preview' },
+  { t: '29. Liên trường THPT Nghệ An (Mã đề chẵn)', url: 'https://drive.google.com/file/d/1u90WPkPBPv_Tm3eOtn8mb0g5pmuvs1s4/preview' },
+  { t: '39. THPT Chuyên Nguyễn Văn Trỗi - Hà Tĩnh', url: 'https://drive.google.com/file/d/1umgawAJv0IX1kfRpg1VbTW4xIK01Bj6z/preview' },
+  { t: '54. Sở giáo dục và đào tạo Ninh Bình (Lần 2)', url: 'https://drive.google.com/file/d/1v2KXUFNUFcoH7ttHnmlSHl0hFYGzxa_e/preview' },
+  { t: '53. Liên trường THPT Nghệ An (Mã đề Lẻ)', url: 'https://drive.google.com/file/d/1x5kpd_NYr926HE7SJjmCmYvhOdh-6MW6/preview' },
+  { t: '47. Cụm liên trường THPT Thanh Hóa (Bản 2)', url: 'https://drive.google.com/file/d/1xG95y2ojmmCl75jWqP9AlTsLqMlyVayD/preview' }
+],
         exams: [{ t: 'Mock Test IELTS Reading', url: '#' }]
     },
     'default': {
@@ -883,4 +938,5 @@ window.playVideo = (vidId) => { /* Code cũ giữ nguyên */
 function onPlayerStateChange(event) { if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); else clearInterval(videoTimer); }
 function strictVideoLoop() { if(!player || !player.getDuration) return; const cur = player.getCurrentTime(), dur = player.getDuration(), per = (cur/dur)*100; document.getElementById('video-bar').style.width = per + '%'; document.getElementById('video-percent').innerText = Math.round(per) + '%'; const m = Math.floor(cur/60), s = Math.floor(cur%60); document.getElementById('video-time').innerText = `${m}:${s<10?'0'+s:s}`; if (player.isMuted()) player.unMute(); }
 window.closeVideoModal = () => { document.getElementById('video-modal').classList.add('hidden'); if(player && player.stopVideo) player.stopVideo(); clearInterval(videoTimer); };
+
 
