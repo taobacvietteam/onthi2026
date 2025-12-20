@@ -751,9 +751,54 @@ const mockSubjectData = {
     { t: 'Chữa đề thi minh họa', id: 'xQaFkr6Tffc' }
         ],
         docs: [
-            { t: 'Bảng tuần hoàn chi tiết', url: '#' }
-            
-        ],
+  { t: '17. THPT Diên Hồng - TP Hồ Chí Minh (Lần 1)', url: 'https://drive.google.com/file/d/1-npZX-S6gHroRmB1PrrxUR63Zz7OsA-l/preview' },
+  { t: '31. Sở GDĐT Bắc Ninh (Đề tập huấn)', url: 'https://drive.google.com/file/d/128qwE7iP5a1gbqUwBt0OK5PlllaPR7wk/preview' },
+  { t: '29. THPT Hậu Lộc 1 - Thanh Hóa', url: 'https://drive.google.com/file/d/13FB6erjFXLV8bl5bTzjK1RyE49blNL0w/preview' },
+  { t: '43. THPT Tân Kỳ - Nghệ An (Lần 1)', url: 'https://drive.google.com/file/d/13XfDRLWxwBHa5NJA5Uw_5E4tuox4dcjV/preview' },
+  { t: '15. THPT Cù Huy Cận - Hà Tĩnh', url: 'https://drive.google.com/file/d/15Z5qNvElk6YslyQtTrgYaxpPP-LgcDsd/preview' },
+  { t: '1. THPT Lương Tài 2 - Bắc Ninh - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/16GlaMCJDav7UlNAHDxqwS7rc6CJ3CLfx/preview' },
+  { t: '11. Cụm Bắc Ninh (Lần 2)', url: 'https://drive.google.com/file/d/16fwadBFQiQLWWquPuYLeJD0iUZhAWCb4/preview' },
+  { t: '42. THPT Quang Trung - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/16luYZFk6aRHiHZclQTkOuReMkc9Spl8I/preview' },
+  { t: '6. THPT Chuyên Lê Hồng Phong - Nam Định - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/19ls2fxPMYvkQyynORn7GF-B3UInx59vL/preview' },
+  { t: '33. Sở GDĐT Thanh Hóa (Lần 1)', url: 'https://drive.google.com/file/d/19lwFHo394o6V6dQ5OntD8cID4uexUTWN/preview' },
+  { t: '37. THPT Kinh Môn - Hải Dương (Lần 1)', url: 'https://drive.google.com/file/d/1EEL22TvI2or-njv_u6u0Dp8jgD9JvYRK/preview' },
+  { t: '9. THPT Chuyên Lê Quý Đôn - Bà Rịa Vũng Tàu (Lần 1)', url: 'https://drive.google.com/file/d/1Et1cs32kNTexOwhWfhrk-G2UXz5CHNrx/preview' },
+  { t: '44. Chuyên Lê Quý Đôn - Đà Nẵng (Lần 1)', url: 'https://drive.google.com/file/d/1GBJ1TvrykKOom-XrrjJFL_PdJ_1NDkqQ/preview' },
+  { t: '40. Sở GDĐT Lạng Sơn (Lần 1)', url: 'https://drive.google.com/file/d/1H6k77r8mdC_Vy9VONHZ6RKWzw_gKuGOS/preview' },
+  { t: '21. Sở GDĐT Hà Tĩnh (Lần 1)', url: 'https://drive.google.com/file/d/1JOQ0mdKdE5RWz62siPgZU2ID7AbopXfa/preview' },
+  { t: '10. THPT Chuyên Phan Bội Châu - Nghệ An (Lần 1)', url: 'https://drive.google.com/file/d/1L-CAofmKymD0Tg0sEwjMQ7lmqQGg5hNn/preview' },
+  { t: '38. THPT Lê Chân - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/1Ma1psKt4uf5NB5ywr9zSShEEHVptrrBn/preview' },
+  { t: '27. THPT Hàm Rồng - Thanh Hóa (Lần 1)', url: 'https://drive.google.com/file/d/1N6QnGh5R6ghEaNlwsN5oV95z4JEMYsQV/preview' },
+  { t: '16. THPT Kiến An - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/1QyajGiimG5weTIMqxEUifQQ5zIIKx55B/preview' },
+  { t: '22. Chuyên Hạ Long - Quảng Ninh (Lần 1)', url: 'https://drive.google.com/file/d/1R8NUgP-6SORYCid6OvZTq_xfhjLOsP_U/preview' },
+  { t: '28. Cụm Liên trường THPT - Thanh Hóa', url: 'https://drive.google.com/file/d/1S2hheHO553jD-aj2dpKoxig3m509ErUx/preview' },
+  { t: '35. Sở GDĐT Vĩnh Phúc (Lần 1 - Đề 2)', url: 'https://drive.google.com/file/d/1SkQCoS5fCxc6DLcLubjryGrpvGSBFW1P/preview' },
+  { t: '23. THPT Tiên Du 1 - Bắc Ninh (KS đầu năm)', url: 'https://drive.google.com/file/d/1UVR1t4SWH2nIDLfvbrZs9j0BdVpZQAoP/preview' },
+  { t: '7. THPT Nguyễn Khuyến - TP HCM - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/1XCuuHlgyai6-6XAMFSYVBlDPF2VgX4i_/preview' },
+  { t: '25. Cụm chuyên môn số 3 - Đắk Lắk (Lần 1)', url: 'https://drive.google.com/file/d/1ZZMXWdGaQdNnAclecsMi-zI02jYGP3Az/preview' },
+  { t: '39. Sở GDĐT Phú Thọ (Lần 1)', url: 'https://drive.google.com/file/d/1_s8oZt85nSNUwZeU88ch3cN5yJbd9ccj/preview' },
+  { t: '13. Sở GD&ĐT TP HCM', url: 'https://drive.google.com/file/d/1_ymXXEGl0_niieFee-gd-7UvDutSrYz6/preview' },
+  { t: '36. Sở GDĐT Yên Bái (Đề thử nghiệm)', url: 'https://drive.google.com/file/d/1cjXQVLngyHFixsNcKBayXqHVoXBEmY7N/preview' },
+  { t: '46. Liên trường Nghệ An (Lần 1)', url: 'https://drive.google.com/file/d/1dQme-6neci_1N4n79hd9uT7kGcsW7fbB/preview' },
+  { t: '2. THPT Nguyễn Viết Xuân - Vĩnh Phúc (Form mới)', url: 'https://drive.google.com/file/d/1eS5gQ5d1xVBy_HuCbuFA5TnAoHwF6YiN/preview' },
+  { t: '19. Chuyên KHTN Hà Nội (Lần 1)', url: 'https://drive.google.com/file/d/1emeWAZsOZFmGmEsjlJYsgUAf5Baxzg9P/preview' },
+  { t: '4. THPT Chuyên Phan Bội Châu - Nghệ An (Form mới)', url: 'https://drive.google.com/file/d/1erdM9Ma4PrtPZOtInrfSeiRhp0o1S-IP/preview' },
+  { t: '12. Cụm Hải Dương (Lần 1)', url: 'https://drive.google.com/file/d/1fUZl9Np844sjLDnPVnj4gMQO8cSvEmwX/preview' },
+  { t: '20. Sở GDĐT Tuyên Quang (Lần 1)', url: 'https://drive.google.com/file/d/1gwxCcPIsIIWdg8pY_23mzsXIajr4SoZX/preview' },
+  { t: '14. THPT Lê Thánh Tông - TP Hồ Chí Minh', url: 'https://drive.google.com/file/d/1hhI0dh93CBjGy8EqqfhjOtvOw3dBsMXv/preview' },
+  { t: '5. THPT Tiên Du - Bắc Ninh - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/1hxMWkjybxjx-i80naC9kmTKjS_h_xwqt/preview' },
+  { t: '41. THPT Lương Ngọc Quyến - Thái Nguyên (Lần 1)', url: 'https://drive.google.com/file/d/1iEncBjtrf8Nwsgga38b2bmCRaRwIaQZ-/preview' },
+  { t: '45. Chuyên Trần Phú - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/1itSBUXNF0EhBg6dnOtLmmMZrP_QTm5Dn/preview' },
+  { t: '26. THPT Hà Trung - Thanh Hóa (Lần 1)', url: 'https://drive.google.com/file/d/1j-deYNYXy_abgOKkIKDM4jD5mcpoq9kD/preview' },
+  { t: '3. Sở GD&ĐT Ninh Bình (Form mới)', url: 'https://drive.google.com/file/d/1jjZPtsRq075y9edhyTgC-JswRaIR7iA2/preview' },
+  { t: '18. Sở GDĐT Vĩnh Phúc (Lần 1)', url: 'https://drive.google.com/file/d/1mM9mB3vTeQzRUps6Ez5f05YeF6VeNwbZ/preview' },
+  { t: '34. Sở GDĐT Quảng Bình (Lần 1)', url: 'https://drive.google.com/file/d/1mmrdv9uo77Fcq2KgA0daf8KDpRCmovig/preview' },
+  { t: '30. THPT Yên Lạc - Vĩnh Phúc (Lần 1)', url: 'https://drive.google.com/file/d/1swprSc3DPvDUgZJOryUHMETYurOqBRg_/preview' },
+  { t: '24. THPT Thuận Thành 1 - Bắc Ninh (KS đầu năm)', url: 'https://drive.google.com/file/d/1trpsm0CR8avXHCY4P8NlY24K979zwqUU/preview' },
+  { t: '8. THPT Chuyên Bắc Ninh (Lần 2)', url: 'https://drive.google.com/file/d/1u4qZXMCuEDSGzsybAmoU-VG8Nchj2brX/preview' },
+  { t: '47. Sở GDĐT Ninh Bình (Lần 2)', url: 'https://drive.google.com/file/d/1vNK8QB5l2aba_aU3Uhgkw38Lwm0nWBIW/preview' },
+  { t: '32. Sở GDĐT Bắc Giang (Lần 1)', url: 'https://drive.google.com/file/d/1wQKv-2TK5WGtgHB7aDfjfUgvdZyIyCEz/preview' }
+],
         exams: []
     },
     'Văn': {
@@ -938,5 +983,6 @@ window.playVideo = (vidId) => { /* Code cũ giữ nguyên */
 function onPlayerStateChange(event) { if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); else clearInterval(videoTimer); }
 function strictVideoLoop() { if(!player || !player.getDuration) return; const cur = player.getCurrentTime(), dur = player.getDuration(), per = (cur/dur)*100; document.getElementById('video-bar').style.width = per + '%'; document.getElementById('video-percent').innerText = Math.round(per) + '%'; const m = Math.floor(cur/60), s = Math.floor(cur%60); document.getElementById('video-time').innerText = `${m}:${s<10?'0'+s:s}`; if (player.isMuted()) player.unMute(); }
 window.closeVideoModal = () => { document.getElementById('video-modal').classList.add('hidden'); if(player && player.stopVideo) player.stopVideo(); clearInterval(videoTimer); };
+
 
 
