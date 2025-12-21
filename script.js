@@ -358,7 +358,7 @@ function renderMsg(msg, msgId, container, colName, docId) {
     const isMe = msg.uid === currentUser.uid;
     let reactionHtml = '';
 
-    // Xử lý hiển thị các reaction đã thả
+    // Xử lý hiển thị reaction đã thả (như cũ)
     if (msg.reactions) {
         const counts = {};
         Object.values(msg.reactions).forEach(r => counts[r] = (counts[r] || 0) + 1);
@@ -367,54 +367,53 @@ function renderMsg(msg, msgId, container, colName, docId) {
                 ${k} <span class="text-gray-500 font-semibold">${counts[k]}</span>
             </span>`
         ).join('');
-        
-        if (reactionIcons) {
-            // Reaction hiển thị đè lên góc dưới của bubble
-            reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'} flex gap-1 z-10 whitespace-nowrap">${reactionIcons}</div>`;
-        }
+        if (reactionIcons) reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'} flex gap-1 z-10 whitespace-nowrap">${reactionIcons}</div>`;
     }
 
-    // --- LOGIC SỬA LỖI BỊ KHUẤT ---
-    // 1. Nếu là tin của mình (sát lề phải) -> Nút icon nằm bên TRÁI (-left-8)
-    // 2. Nếu là tin người khác (sát lề trái) -> Nút icon nằm bên PHẢI (-right-8)
+    // --- CẤU HÌNH VỊ TRÍ ---
+    // 1. Nút mặt cười: isMe thì nằm trái tin nhắn, !isMe nằm phải.
     const btnPositionClass = isMe ? '-left-8' : '-right-8';
     
-    // Vị trí của bảng chọn: Luôn hiện lên trên (bottom-full) để tránh bị tin nhắn dưới che
-    const pickerPositionClass = isMe ? 'right-0' : 'left-0';
+    // 2. Bảng Reaction (QUAN TRỌNG):
+    // - Luôn căn lề theo hướng của tin nhắn để không bị trôi ra ngoài màn hình.
+    // - isMe (tin bên phải) -> Căn phải (right-0)
+    // - !isMe (tin bên trái) -> Căn trái (left-0)
+    // - bottom-[calc(100%+0.5rem)]: Đẩy nó lên trên đầu tin nhắn cách 1 đoạn nhỏ.
+    const pickerPositionClass = isMe ? 'right-0 origin-bottom-right' : 'left-0 origin-bottom-left';
 
     const html = `
-        <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative mb-6 px-2">
-            ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end shadow-sm">` : ''}
+        <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative mb-8 px-2">
+            ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end shadow-sm flex-shrink-0">` : ''}
             
             <div class="max-w-[80%] md:max-w-[70%] relative group">
                 ${!isMe ? `<p class="text-xs text-gray-400 ml-1 mb-1">${msg.name}</p>` : ''}
                 
-                <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative">
+                <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative z-0">
                     ${msg.img ? `<img src="${msg.img}" class="rounded-lg mb-2 max-w-full block">` : ''}
                     ${msg.text ? `<p class="break-words text-sm md:text-base leading-snug">${msg.text}</p>` : ''}
-                    
-                    <button class="reaction-trigger absolute top-1/2 transform -translate-y-1/2 ${btnPositionClass} 
-                                   text-gray-400 hover:text-yellow-500 bg-white rounded-full w-6 h-6 flex items-center justify-center 
-                                   shadow-sm border transition-all opacity-0 group-hover:opacity-100 z-20" 
-                            onclick="toggleReactionPicker('${msgId}')">
-                        <i class="far fa-smile text-xs"></i>
-                    </button>
-
-                    <div id="picker-${msgId}" class="reaction-picker hidden absolute bottom-full mb-2 ${pickerPositionClass} 
-                                                    bg-white shadow-xl border rounded-full p-1.5 flex gap-1 z-50 min-w-max">
-                        ${['❤️','😂','😮','😢','👍'].map(emoji => 
-                            `<span class="reaction-btn cursor-pointer hover:bg-gray-100 p-1.5 rounded-full transition-transform hover:scale-125 text-lg select-none" 
-                                   onclick="addReaction('${colName}', '${docId}', '${msgId}', '${emoji}')">${emoji}</span>`
-                        ).join('')}
-                    </div>
                 </div>
+
+                <button class="reaction-trigger absolute top-1/2 transform -translate-y-1/2 ${btnPositionClass} 
+                               text-gray-400 hover:text-yellow-500 bg-white rounded-full w-6 h-6 flex items-center justify-center 
+                               shadow-sm border transition-all opacity-0 group-hover:opacity-100 z-10" 
+                        onclick="toggleReactionPicker('${msgId}')">
+                    <i class="far fa-smile text-xs"></i>
+                </button>
+
+                <div id="picker-${msgId}" class="reaction-picker hidden absolute bottom-[calc(100%+5px)] ${pickerPositionClass} 
+                                                bg-white shadow-xl border rounded-full px-2 py-1 flex gap-2 z-50 min-w-max animate-fade-in-up">
+                    ${['❤️','😂','😮','😢','👍'].map(emoji => 
+                        `<span class="reaction-btn cursor-pointer hover:bg-gray-100 p-1.5 rounded-full transition-transform hover:scale-125 text-xl select-none leading-none" 
+                               onclick="addReaction('${colName}', '${docId}', '${msgId}', '${emoji}')">${emoji}</span>`
+                    ).join('')}
+                </div>
+
                 ${reactionHtml}
             </div>
         </div>
     `;
     container.insertAdjacentHTML('beforeend', html);
 }
-
 window.toggleReactionPicker = (msgId) => {
     document.querySelectorAll('.reaction-picker').forEach(el => { if (el.id !== `picker-${msgId}`) el.classList.add('hidden'); });
     const p = document.getElementById(`picker-${msgId}`);
@@ -1512,3 +1511,4 @@ window.handleGameOver = async (score) => {
         console.error("Lỗi lưu điểm:", e);
     }
 };
+
