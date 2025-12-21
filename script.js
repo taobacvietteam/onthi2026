@@ -20,11 +20,12 @@ const APP_ID = 'onthi-2026';
 let currentUser = null;
 let userProfile = null;
 let currentChatType = 'global'; 
-let currentChatTarget = null; // ID nhóm hoặc ID người chat
+let currentChatTarget = null;
 let player = null, videoTimer = null;
 let gameInterval = null;
 let meetingApi = null;
 let currentAdminTab = 'users';
+let currentViewingGroupId = null; // Biến quan trọng cho quản lý nhóm
 
 // INJECT YOUTUBE API
 const tag = document.createElement('script');
@@ -52,31 +53,72 @@ window.handleLogin = async () => {
 };
 
 window.handleRegister = async () => {
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-pass').value;
+    const emailEl = document.getElementById('auth-email');
+    const passEl = document.getElementById('auth-pass');
+    // Cần thêm ID cho nút đăng ký trong HTML để code này hoạt động
+    const btn = document.getElementById('btn-register-submit'); 
+
+    const email = emailEl.value;
+    const pass = passEl.value;
+
     if(!email || !pass) return toast('Vui lòng nhập đầy đủ thông tin', 'error');
+
+    // 1. Khóa nút bấm và đổi text để người dùng biết đang chạy
+    if(btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    }
+
     try {
+        // 2. Tạo User Authentication
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
-        // Tài khoản admin cứng
+        
         const role = email === 'taobacvietteam@gmail.com' ? 'admin' : 'student';
+        
+        // 3. Tạo dữ liệu Profile (Thêm totalScore = 0 để hiện BXH)
         const profile = {
             uid: cred.user.uid,
-            email, role, displayName: email.split('@')[0], 
+            email, 
+            role, 
+            displayName: email.split('@')[0], 
             avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=random`,
             isBlocked: false,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            totalScore: 0 // QUAN TRỌNG: Khởi tạo điểm bằng 0
         };
-        await setDoc(doc(db, 'artifacts', APP_ID, 'users', cred.user.uid, 'profile', 'info'), profile);
-        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', cred.user.uid), profile);
-        toast('Đăng ký thành công! Đang đăng nhập...', 'success');
-    } catch(e) { toast(e.message, 'error'); }
+
+        // 4. Lưu song song vào 2 nơi (nhanh gấp đôi cách cũ)
+        await Promise.all([
+            setDoc(doc(db, 'artifacts', APP_ID, 'users', cred.user.uid, 'profile', 'info'), profile),
+            setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', cred.user.uid), profile)
+        ]);
+
+        toast('Đăng ký thành công! Đang chuyển hướng...', 'success');
+        // Không cần làm gì thêm, onAuthStateChanged sẽ tự động bắt sự kiện và chuyển trang
+
+    } catch(e) {
+        console.error(e);
+        // Việt hóa lỗi phổ biến
+        if(e.code === 'auth/email-already-in-use') {
+            toast('Email này đã được sử dụng!', 'error');
+        } else if (e.code === 'auth/weak-password') {
+            toast('Mật khẩu quá yếu (cần > 6 ký tự)', 'error');
+        } else {
+            toast('Lỗi: ' + e.message, 'error');
+        }
+    } finally {
+        // 5. Mở lại nút bấm dù thành công hay thất bại
+        if(btn) {
+            btn.disabled = false;
+            btn.innerText = 'Đăng ký';
+        }
+    }
 };
 
 window.handleLogout = () => signOut(auth).then(() => window.location.reload());
 
 onAuthStateChanged(auth, async (user) => {
     if(user) {
-        // Kiểm tra xem user còn tồn tại trong DB không (trường hợp bị Admin xóa)
         const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'));
         if(snap.exists()) {
             userProfile = snap.data();
@@ -88,12 +130,22 @@ onAuthStateChanged(auth, async (user) => {
             document.getElementById('main-app').classList.remove('hidden-section');
             updateProfileUI();
             
-            // Phân quyền menu
             if(userProfile.role === 'admin') document.getElementById('admin-menu').classList.remove('hidden');
             if(userProfile.role === 'leader' || userProfile.role === 'admin') document.getElementById('btn-create-group').classList.remove('hidden');
 
+            // Hook nav thật vào window để HTML gọi
+            window.handleNavReal = (viewId) => {
+                document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
+                const target = document.getElementById(`view-${viewId}`);
+                if(target) target.classList.remove('hidden-section');
+                
+                if(viewId === 'groups') loadGroups();
+                if(viewId === 'admin') loadAdminStats();
+                if(viewId === 'games') loadLeaderboard();
+            };
+
             logActivity('login', 'Đăng nhập hệ thống');
-            nav('dashboard');
+            window.handleNavReal('dashboard');
         } else { 
             signOut(auth); 
             toast('Tài khoản không tồn tại hoặc đã bị xóa.', 'error'); 
@@ -103,17 +155,6 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('main-app').classList.add('hidden-section');
     }
 });
-
-// --- NAVIGATION & UI ---
-window.nav = (view) => {
-    document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
-    const target = document.getElementById(`view-${view}`);
-    if(target) target.classList.remove('hidden-section');
-    
-    if(view === 'groups') loadGroups();
-    if(view === 'admin') loadAdminStats();
-    if(view === 'games') loadLeaderboard();
-};
 
 function updateProfileUI() {
     document.getElementById('my-name-display').innerText = userProfile.displayName;
@@ -139,7 +180,7 @@ window.saveProfile = async () => {
     toast('Cập nhật hồ sơ thành công!', 'success');
 };
 
-// --- GROUP SYSTEM ---
+// --- GROUP SYSTEM (CORE) ---
 window.openCreateGroupModal = () => document.getElementById('modal-create-group').classList.remove('hidden');
 
 window.createGroup = async () => {
@@ -152,6 +193,7 @@ window.createGroup = async () => {
         leaderId: currentUser.uid, 
         leaderName: userProfile.displayName,
         members: [currentUser.uid], 
+        documents: [], // Khởi tạo mảng tài liệu rỗng
         createdAt: serverTimestamp()
     });
     document.getElementById('modal-create-group').classList.add('hidden');
@@ -167,12 +209,12 @@ window.loadGroups = () => {
             const g = d.data();
             const isMember = g.members.includes(currentUser.uid);
             container.innerHTML += `
-                <div class="bg-white p-5 rounded-xl shadow border border-indigo-50 flex flex-col justify-between gap-3">
+                <div onclick="${isMember ? `openGroupDetail('${d.id}')` : ''}" class="bg-white p-5 rounded-xl shadow border border-indigo-50 flex flex-col justify-between gap-3 cursor-pointer hover:shadow-lg transition">
                     <div>
                         <h3 class="font-bold text-lg text-indigo-700">${g.name}</h3>
                         <p class="text-xs text-gray-500">Leader: ${g.leaderName} | ${g.members.length} mem</p>
                     </div>
-                    <div class="flex gap-2 w-full">
+                    <div class="flex gap-2 w-full" onclick="event.stopPropagation()">
                         ${isMember ? 
                             `<button onclick="startGroupMeeting('${d.id}')" class="flex-1 bg-green-500 text-white px-2 py-2 rounded text-sm font-bold"><i class="fas fa-video"></i> Họp</button>
                              <button onclick="openGroupChat('${d.id}', '${g.name}')" class="flex-1 bg-blue-500 text-white px-2 py-2 rounded text-sm font-bold"><i class="fas fa-comment"></i> Chat</button>`
@@ -197,10 +239,8 @@ window.switchChatTab = (type) => {
     currentChatType = type;
     document.getElementById('chat-messages').innerHTML = '';
     document.getElementById('chat-list').innerHTML = '';
-    
-    // Reset Header Buttons
     const headerTitle = document.getElementById('chat-title-display');
-    headerTitle.innerHTML = ""; // Clear existing content
+    headerTitle.innerHTML = "";
 
     if(type === 'global') {
         headerTitle.innerText = "Chat Chung";
@@ -215,7 +255,6 @@ window.switchChatTab = (type) => {
     }
 };
 
-// ... (loadUserListForChat, loadMyGroupsForChat functions remain similar) ...
 function loadUserListForChat() {
     getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory')).then(snap => {
         const list = document.getElementById('chat-list');
@@ -275,24 +314,21 @@ function listenChat(collectionName, docId) {
 }
 
 window.openGroupChat = (gid, gname) => {
-    nav('chat');
+    window.handleNavReal('chat');
     currentChatType = 'group';
     currentChatTarget = gid;
-    
-    // Header Chat có nút xem thành viên
     const header = document.getElementById('chat-title-display');
     header.innerHTML = `
         <div class="flex justify-between items-center w-full">
             <span>${gname}</span>
-            <button onclick="openGroupMembers('${gid}')" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200">
-                <i class="fas fa-info-circle"></i> Thành viên
+            <button onclick="openGroupDetail('${gid}')" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200">
+                <i class="fas fa-info-circle"></i> Chi tiết
             </button>
         </div>
     `;
     listenChat('group', gid);
 };
 
-// --- CHAT: SEND & RENDER ---
 window.sendChat = async () => {
     const input = document.getElementById('chat-input');
     const txt = input.value.trim();
@@ -307,7 +343,7 @@ window.sendChat = async () => {
         name: userProfile.displayName, 
         avatar: userProfile.avatar, 
         ts: serverTimestamp(),
-        reactions: {} // New: Field cho reactions
+        reactions: {}
     };
     input.value = ''; clearImage();
 
@@ -318,19 +354,14 @@ window.sendChat = async () => {
     } catch(e) { console.error(e); }
 };
 
-// UPDATE: Render message với Reaction
 function renderMsg(msg, msgId, container, colName, docId) {
     const isMe = msg.uid === currentUser.uid;
-    
-    // Xử lý hiển thị reactions
     let reactionHtml = '';
     if (msg.reactions) {
         const counts = {};
         Object.values(msg.reactions).forEach(r => counts[r] = (counts[r] || 0) + 1);
         const reactionIcons = Object.keys(counts).map(k => `<span class="ml-1">${k} <span class="text-xs text-gray-500">${counts[k]}</span></span>`).join('');
-        if(reactionIcons) {
-            reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'}">${reactionIcons}</div>`;
-        }
+        if(reactionIcons) reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'}">${reactionIcons}</div>`;
     }
 
     const html = `
@@ -341,11 +372,9 @@ function renderMsg(msg, msgId, container, colName, docId) {
                 <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative">
                     ${msg.img ? `<img src="${msg.img}" class="rounded-lg mb-2 max-w-full">` : ''}
                     ${msg.text ? `<p class="break-words text-sm md:text-base">${msg.text}</p>` : ''}
-                    
                     <button class="reaction-trigger absolute -right-6 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-yellow-500 bg-white rounded-full p-1 shadow-sm border" onclick="toggleReactionPicker('${msgId}')">
                         <i class="far fa-smile"></i>
                     </button>
-                    
                     <div id="picker-${msgId}" class="reaction-picker hidden">
                         ${['❤️','😂','😮','😢','👍'].map(emoji => 
                             `<span class="reaction-btn" onclick="addReaction('${colName}', '${docId}', '${msgId}', '${emoji}')">${emoji}</span>`
@@ -359,127 +388,29 @@ function renderMsg(msg, msgId, container, colName, docId) {
     container.insertAdjacentHTML('beforeend', html);
 }
 
-// --- REACTION LOGIC ---
 window.toggleReactionPicker = (msgId) => {
-    // Ẩn tất cả các picker khác trước
-    document.querySelectorAll('.reaction-picker').forEach(el => {
-        if (el.id !== `picker-${msgId}`) el.classList.add('hidden');
-    });
+    document.querySelectorAll('.reaction-picker').forEach(el => { if (el.id !== `picker-${msgId}`) el.classList.add('hidden'); });
     const p = document.getElementById(`picker-${msgId}`);
-    if(p) {
-        p.classList.remove('hidden');
-        p.style.display = 'flex'; // Force flex display
-        // Tự động ẩn sau 3s nếu ko chọn
-        setTimeout(() => p.classList.add('hidden'), 3000);
-    }
+    if(p) { p.classList.remove('hidden'); p.style.display = 'flex'; setTimeout(() => p.classList.add('hidden'), 3000); }
 };
 
 window.addReaction = async (colName, docId, msgId, emoji) => {
-    // Xác định đường dẫn collection
     let msgRef;
     if(colName === 'global') msgRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'chat_global', msgId);
     else if(colName === 'private_sorted') msgRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'chats', docId, 'messages', msgId);
     else if(colName === 'group') msgRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', docId, 'messages', msgId);
 
     if(msgRef) {
-        // Update field reactions.uid = emoji
         const updateField = {};
         updateField[`reactions.${currentUser.uid}`] = emoji;
         await updateDoc(msgRef, updateField);
-        // Ẩn picker
         document.getElementById(`picker-${msgId}`).classList.add('hidden');
     }
 };
 
-// --- NEW: GROUP MEMBER MANAGEMENT (KICK, LEAVE) ---
-window.openGroupMembers = async (gid) => {
-    const modal = document.getElementById('modal-group-members');
-    const listDiv = document.getElementById('group-members-list');
-    const footerDiv = document.getElementById('group-actions-footer');
-    
-    listDiv.innerHTML = '<p class="text-center text-gray-500">Đang tải...</p>';
-    modal.classList.remove('hidden');
-    
-    // Lấy thông tin nhóm
-    const gSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid));
-    if(!gSnap.exists()) return;
-    const gData = gSnap.data();
-    const isLeader = gData.leaderId === currentUser.uid;
-
-    listDiv.innerHTML = '';
-    footerDiv.innerHTML = '';
-
-    // Nút Rời nhóm (nếu không phải Leader)
-    if (!isLeader) {
-        footerDiv.innerHTML = `<button onclick="leaveGroup('${gid}')" class="w-full bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200"><i class="fas fa-sign-out-alt"></i> Rời nhóm này</button>`;
-    } else {
-        footerDiv.innerHTML = `<p class="text-center text-xs text-gray-400">Trưởng nhóm không thể rời nhóm, hãy giải tán nhóm nếu muốn.</p>`;
-    }
-
-    // Load từng thành viên
-    // Lưu ý: data nhóm lưu array 'members' là [uid1, uid2]. Cần fetch info từng user.
-    // Để tối ưu, ở đây ta sẽ query users_directory với 'in' (giới hạn 10) hoặc fetch từng cái. 
-    // Do Firestore limit, ta fetch từng cái loop cho đơn giản code demo.
-    
-    for (const memUid of gData.members) {
-        const uSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', memUid));
-        let uName = 'Unknown', uAva = '';
-        if(uSnap.exists()) {
-            uName = uSnap.data().displayName;
-            uAva = uSnap.data().avatar;
-        }
-
-        const isMe = memUid === currentUser.uid;
-        const isMemLeader = memUid === gData.leaderId;
-
-        let actionBtn = '';
-        // Nếu mình là Leader và người kia ko phải mình -> Cho phép Kick
-        if (isLeader && !isMe) {
-            actionBtn = `<button onclick="kickMember('${gid}', '${memUid}', '${uName}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold border border-red-200">Kích</button>`;
-        }
-
-        listDiv.innerHTML += `
-            <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded border-b">
-                <div class="flex items-center">
-                    <img src="${uAva}" class="w-8 h-8 rounded-full mr-2">
-                    <div>
-                        <p class="text-sm font-bold ${isMemLeader ? 'text-indigo-600':''}">${uName} ${isMe?'(Bạn)':''}</p>
-                        ${isMemLeader ? '<span class="text-[10px] bg-indigo-100 text-indigo-600 px-1 rounded">Trưởng nhóm</span>' : ''}
-                    </div>
-                </div>
-                <div>${actionBtn}</div>
-            </div>
-        `;
-    }
-};
-
-window.leaveGroup = async (gid) => {
-    if(!confirm("Bạn chắc chắn muốn rời nhóm này?")) return;
-    try {
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid), {
-            members: arrayRemove(currentUser.uid)
-        });
-        toast("Đã rời nhóm thành công.", "success");
-        document.getElementById('modal-group-members').classList.add('hidden');
-        nav('groups'); // Quay về danh sách nhóm
-    } catch(e) { toast("Lỗi: " + e.message, 'error'); }
-};
-
-window.kickMember = async (gid, uid, name) => {
-    if(!confirm(`Bạn muốn kích ${name} ra khỏi nhóm?`)) return;
-    try {
-        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid), {
-            members: arrayRemove(uid)
-        });
-        toast(`Đã kích ${name} khỏi nhóm.`, "success");
-        // Reload modal list
-        openGroupMembers(gid);
-    } catch(e) { toast("Lỗi: " + e.message, 'error'); }
-};
-
-// --- MEETING & OTHER EXISTING LOGIC (Giữ nguyên) ---
+// --- MEETING ---
 window.startGroupMeeting = (groupId) => {
-    nav('meeting');
+    window.handleNavReal('meeting');
     const domain = 'meet.jit.si';
     const options = {
         roomName: `OnThi2026_Group_${groupId}`,
@@ -492,10 +423,9 @@ window.startGroupMeeting = (groupId) => {
     document.querySelector('#meet-container').innerHTML = '';
     meetingApi = new JitsiMeetExternalAPI(domain, options);
 };
-window.endMeeting = () => { if(meetingApi) meetingApi.dispose(); nav('groups'); };
+window.endMeeting = () => { if(meetingApi) meetingApi.dispose(); window.handleNavReal('groups'); };
 
-// --- ADMIN FEATURES: PROMOTION & DELETE USER ---
-
+// --- ADMIN FEATURES ---
 window.switchAdminTab = (tab) => {
     currentAdminTab = tab;
     document.getElementById('admin-tab-users').classList.toggle('hidden-section', tab !== 'users');
@@ -509,11 +439,9 @@ window.loadAdminStats = () => {
          snap.forEach(d => {
              const u = d.data();
              const isSelf = d.id === currentUser.uid;
-             // Logic Buttons
              let roleBtn = '';
              if (u.role === 'student') roleBtn = `<button onclick="assignLeader('${d.id}')" class="text-xs bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200 mr-1">Thăng Leader</button>`;
              else if (u.role === 'leader') roleBtn = `<button onclick="demoteLeader('${d.id}')" class="text-xs bg-orange-100 text-orange-600 p-1 rounded hover:bg-orange-200 mr-1">Xuống Member</button>`;
-
              let deleteBtn = !isSelf ? `<button onclick="deleteUserSystem('${d.id}', '${u.displayName}')" class="text-xs bg-red-600 text-white p-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Xóa TK</button>` : '';
 
              tbody.innerHTML += `
@@ -527,8 +455,7 @@ window.loadAdminStats = () => {
                     <td class="p-3 text-right">
                         ${!isSelf ? `
                             <button onclick="toggleBlockUser('${d.id}', ${u.isBlocked})" class="text-xs bg-gray-200 p-1 rounded mr-1">${u.isBlocked?'Mở':'Khóa'}</button>
-                            ${roleBtn}
-                            ${deleteBtn}
+                            ${roleBtn} ${deleteBtn}
                         ` : '<span class="text-xs text-gray-400">Bạn</span>'}
                     </td>
                 </tr>`;
@@ -536,9 +463,8 @@ window.loadAdminStats = () => {
      });
 };
 
-// 1. Thăng chức Leader (Chỉ Admin)
 window.assignLeader = async (uid) => {
-    if(!confirm("Cấp quyền Nhóm Trưởng cho người này? Họ sẽ tạo được nhóm.")) return;
+    if(!confirm("Cấp quyền Nhóm Trưởng?")) return;
     await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), { role: 'leader' });
     await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { role: 'leader' });
     toast("Đã thăng chức thành công!", "success");
@@ -551,66 +477,377 @@ window.demoteLeader = async (uid) => {
     toast("Đã hủy quyền!", "success");
     loadAdminStats();
 };
-
-// 2. Xóa tài khoản khỏi hệ thống (Giả lập xóa - Soft Delete Data)
-// Lưu ý: Không thể xóa Auth user từ client SDK nếu không có credential. 
-// Cách xử lý: Xóa profile info -> Khi user đó đăng nhập lại sẽ ko tìm thấy profile -> Bị logout ngay.
 window.deleteUserSystem = async (uid, name) => {
-    const confirmStr = prompt(`Để xóa vĩnh viễn user "${name}", hãy nhập chữ "DELETE" vào ô dưới:`);
-    if(confirmStr !== "DELETE") return toast("Hủy thao tác xóa.", "info");
-
+    if(prompt(`Nhập 'DELETE' để xóa "${name}":`) !== "DELETE") return;
     try {
-        // 1. Xóa trong directory public
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid));
-        // 2. Xóa profile gốc
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'));
-        
-        toast(`Đã xóa dữ liệu của ${name}. Họ sẽ không thể đăng nhập nữa.`, "success");
+        toast(`Đã xóa dữ liệu của ${name}.`, "success");
         loadAdminStats();
-    } catch(e) {
-        toast("Lỗi xóa user: " + e.message, "error");
-    }
+    } catch(e) { toast("Lỗi xóa user: " + e.message, "error"); }
 };
-
 window.toggleBlockUser = async (uid, status) => {
-    if(confirm("Đổi trạng thái khóa tài khoản này?")) {
+    if(confirm("Đổi trạng thái khóa?")) {
         await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), { isBlocked: !status });
         await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { isBlocked: !status });
         loadAdminStats();
     }
 };
 
-// ... (Các phần Game Logic & Subject Logic giữ nguyên từ code cũ) ...
 window.handleImageSelect = (input) => { const file = input.files[0]; if(file) { const reader = new FileReader(); reader.onload = e => { document.getElementById('img-prev-src').src = e.target.result; document.getElementById('image-preview').classList.remove('hidden'); }; reader.readAsDataURL(file); } };
 window.clearImage = () => { document.getElementById('image-preview').classList.add('hidden'); document.getElementById('img-prev-src').src = ''; };
 
-// GAME LOGIC PLACEHOLDER (Copy lại phần game từ code trước vào đây để file chạy đủ)
-let snakeDx = 0, snakeDy = 0; 
+// GAME LOGIC
+// ==========================================
+// --- GAME LOGIC SYSTEM (REPLACED) ---
+// ==========================================
+
+// 1. Biến quản lý vòng lặp chung (Chỉ khai báo 1 lần duy nhất ở đây)
+let activeGameInterval = null;
+
+// 2. Hàm dọn dẹp game cũ (Chỉ khai báo 1 lần duy nhất ở đây)
+function clearActiveGame() {
+    if (activeGameInterval) clearInterval(activeGameInterval);
+    document.onkeydown = null; // Xóa sự kiện bàn phím
+}
+
+// 3. Hàm Bắt đầu Game (Đã sửa để gọi Dodge Game thay vì Snake)
 window.startGame = (gameType) => {
     const modal = document.getElementById('modal-game-play');
     const container = document.getElementById('game-canvas-container');
-    const mobileControls = document.getElementById('snake-mobile-controls');
+    const mobileControls = document.getElementById('snake-mobile-controls'); // ID cũ trong HTML
+    
+    // Hiển thị Modal
     modal.classList.remove('hidden');
     container.innerHTML = '';
     document.getElementById('game-score-play').innerText = "Score: 0";
-    if (gameType === 'snake') { mobileControls.classList.remove('hidden'); mobileControls.classList.add('grid'); initSnakeGame(container); } 
-    else { mobileControls.classList.add('hidden'); mobileControls.classList.remove('grid'); if(gameType === 'math') initMathGame(container); else if(gameType === 'memory') initMemoryGame(container); else if(gameType === 'clicker') initClickerGame(container); else if(gameType === 'typer') initTyperGame(container); }
+    
+    // Ẩn bộ điều khiển cũ ngoài HTML (vì Game mới tự vẽ nút rồi)
+    if(mobileControls) {
+        mobileControls.classList.add('hidden');
+        mobileControls.classList.remove('grid');
+    }
+
+    clearActiveGame(); // Dọn dẹp game cũ trước khi chạy
+
+    // Điều hướng chọn game
+    if (gameType === 'snake') { 
+        // Vẫn giữ ID là 'snake' để không phải sửa HTML, nhưng chạy hàm Dodge
+        initDodgeGame(container); 
+    } 
+    else if (gameType === 'math') initMathGame(container); 
+    else if (gameType === 'memory') initMemoryGame(container); 
+    else if (gameType === 'clicker') initClickerGame(container); 
+    else if (gameType === 'typer') initTyperGame(container);
 };
-window.closeGame = () => { if(gameInterval) clearInterval(gameInterval); document.getElementById('modal-game-play').classList.add('hidden'); };
-window.handleMobileControl = (key) => { handleSnakeKey({ key: key }); };
-function handleSnakeKey(e) { if(e.key==='ArrowUp' && snakeDy!==1) {snakeDx=0; snakeDy=-1} if(e.key==='ArrowDown' && snakeDy!==-1) {snakeDx=0; snakeDy=1} if(e.key==='ArrowLeft' && snakeDx!==1) {snakeDx=-1; snakeDy=0} if(e.key==='ArrowRight' && snakeDx!==-1) {snakeDx=1; snakeDy=0} }
-function initSnakeGame(container) { const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 300; container.appendChild(canvas); const ctx = canvas.getContext('2d'); let snake = [{x:10, y:10}]; let food = {x:15, y:15}; snakeDx=0; snakeDy=0; let score=0; document.addEventListener('keydown', handleSnakeKey); gameInterval = setInterval(() => { const head = {x: snake[0].x+snakeDx, y: snake[0].y+snakeDy}; snake.unshift(head); if(head.x === food.x && head.y === food.y) { score+=10; document.getElementById('game-score-play').innerText = `Score: ${score}`; food = {x: Math.floor(Math.random()*15), y: Math.floor(Math.random()*15)}; } else { snake.pop(); } ctx.fillStyle = '#222'; ctx.fillRect(0,0,300,300); ctx.fillStyle = 'red'; ctx.fillRect(food.x*20, food.y*20, 18, 18); ctx.fillStyle = 'lime'; snake.forEach(s => ctx.fillRect(s.x*20, s.y*20, 18, 18)); if(head.x<0||head.x>=15||head.y<0||head.y>=15) { clearInterval(gameInterval); document.removeEventListener('keydown', handleSnakeKey); alert(`Game Over! Score: ${score}`); closeGame(); } }, 150); }
-function initMathGame(container) { container.innerHTML = `<div class="text-white text-center w-full"><div id="math-q" class="text-5xl font-bold mb-8">5 + 5 = ?</div><input type="number" id="math-ans" class="text-black p-3 rounded text-center text-2xl w-32 focus:outline-none" autofocus><button id="btn-math-submit" class="block w-full bg-blue-500 mt-6 p-3 rounded font-bold hover:bg-blue-600 transition">Trả lời</button><div id="math-timer" class="mt-4 text-red-400 font-mono text-xl">Time: 30s</div></div>`; let score = 0, timeLeft = 30, a, b, res; const nextQ = () => { a = Math.floor(Math.random()*20); b = Math.floor(Math.random()*20); res = a+b; document.getElementById('math-q').innerText = `${a} + ${b} = ?`; document.getElementById('math-ans').value = ''; document.getElementById('math-ans').focus(); }; const check = () => { if(parseInt(document.getElementById('math-ans').value) === res) { score+=10; document.getElementById('game-score-play').innerText = `Score: ${score}`; nextQ(); } }; document.getElementById('btn-math-submit').onclick = check; nextQ(); gameInterval = setInterval(() => { timeLeft--; document.getElementById('math-timer').innerText = `Time: ${timeLeft}s`; if(timeLeft<=0) { clearInterval(gameInterval); alert(`Hết giờ! Điểm: ${score}`); closeGame(); } }, 1000); }
-function initMemoryGame(container) { const icons = ['🍎','🍌','🍒','🍇','🍉','🍊','🍍','🥝']; let cards = [...icons, ...icons].sort(() => 0.5 - Math.random()); let flipped = [], matched = 0, score = 0; container.innerHTML = `<div class="grid grid-cols-4 gap-2 w-full max-w-sm"></div>`; const grid = container.querySelector('div'); cards.forEach((icon) => { const card = document.createElement('div'); card.className = 'memory-card h-16 w-full relative'; card.innerHTML = `<div class="memory-card-inner w-full h-full"><div class="memory-front text-xl">${icon}</div><div class="memory-back"><i class="fas fa-question text-xl"></i></div></div>`; card.onclick = () => { if(card.classList.contains('flipped') || flipped.length >= 2) return; card.classList.add('flipped'); flipped.push({card, icon}); if(flipped.length === 2) { if(flipped[0].icon === flipped[1].icon) { matched++; score += 20; document.getElementById('game-score-play').innerText = `Score: ${score}`; flipped = []; if(matched === icons.length) { setTimeout(() => { alert(`Thắng! Điểm: ${score}`); closeGame(); }, 500); } } else { setTimeout(() => { flipped.forEach(f => f.card.classList.remove('flipped')); flipped = []; }, 800); } } }; grid.appendChild(card); }); }
-function initClickerGame(container) { container.innerHTML = `<div class="text-center w-full"><button id="btn-clicker" class="bg-red-500 active:bg-red-700 text-white rounded-full w-40 h-40 text-2xl font-bold shadow-lg transform transition active:scale-95">CLICK ME</button><div id="clicker-timer" class="mt-8 text-yellow-400 text-xl font-mono">10.0s</div></div>`; let clicks = 0, time = 10.0, active = true; document.getElementById('btn-clicker').onclick = () => { if(active) { clicks++; document.getElementById('game-score-play').innerText = `Clicks: ${clicks}`; }}; gameInterval = setInterval(() => { time -= 0.1; document.getElementById('clicker-timer').innerText = time.toFixed(1) + 's'; if(time <= 0) { active = false; clearInterval(gameInterval); alert(`Hết giờ! Tốc độ: ${clicks} clicks.`); closeGame(); } }, 100); }
-function initTyperGame(container) { const words = ['code', 'bug', 'fix', 'api', 'app', 'web', 'git', 'css', 'js', 'html']; let currentWord = '', score = 0, time = 30; container.innerHTML = `<div class="text-center w-full"><div id="typer-word" class="text-4xl font-bold text-green-400 mb-6 bg-gray-900 p-4 rounded select-none">START</div><input type="text" id="typer-input" class="w-full max-w-xs p-3 rounded text-center text-xl uppercase" placeholder="Gõ từ trên..." autocomplete="off"><div id="typer-timer" class="mt-4 text-gray-400">Time: 30s</div></div>`; const next = () => { currentWord = words[Math.floor(Math.random() * words.length)]; document.getElementById('typer-word').innerText = currentWord.toUpperCase(); document.getElementById('typer-input').value = ''; }; next(); const input = document.getElementById('typer-input'); input.focus(); input.oninput = () => { if(input.value.toLowerCase() === currentWord) { score++; document.getElementById('game-score-play').innerText = `Words: ${score}`; next(); } }; gameInterval = setInterval(() => { time--; document.getElementById('typer-timer').innerText = `Time: ${time}s`; if(time <= 0) { clearInterval(gameInterval); alert(`Hết giờ! ${score} từ.`); closeGame(); } }, 1000); }
-window.logActivity = (action, details) => { if(!currentUser) return; addDoc(collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity'), { uid: currentUser.uid, name: userProfile.displayName, action, details, ts: serverTimestamp() }); };
-window.loadActivityLogs = () => { onSnapshot(query(collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity'), orderBy('ts', 'desc'), limit(50)), snap => { const tbody = document.getElementById('admin-log-list'); tbody.innerHTML = ''; snap.forEach(d => { const l = d.data(); tbody.innerHTML += `<tr class="border-b text-xs"><td class="p-3">${l.ts ? new Date(l.ts.toDate()).toLocaleTimeString() : ''}</td><td class="p-3 font-bold">${l.name}</td><td class="p-3">${l.action}</td><td class="p-3">${l.details}</td></tr>`; }); }); };
-// --- 1. DỮ LIỆU CÁC MÔN HỌC ---
+
+// 4. Hàm Đóng Game
+window.closeGame = () => {
+    clearActiveGame(); // Dừng mọi thứ
+    document.getElementById('modal-game-play').classList.add('hidden');
+    // Ẩn các nút điều khiển nếu có
+    const mobileControls = document.getElementById('snake-mobile-controls');
+    if(mobileControls) mobileControls.classList.add('hidden');
+};
+
+// 5. Hàm xử lý nút bấm cũ (Để trống để không báo lỗi)
+window.handleMobileControl = (key) => { return; };
+
+// ==========================================
+// --- GAME 1: DODGE (NÉ THIÊN THẠCH) ---
+// ==========================================
+function initDodgeGame(container) {
+    container.innerHTML = `
+        <div class="flex flex-col items-center w-full select-none">
+            <div class="mb-2 flex justify-between w-full max-w-[300px] text-white font-bold text-sm">
+                <span>HP: <span id="dodge-hp" class="text-red-500 text-lg">3</span></span>
+                <span>Level: <span id="dodge-level" class="text-yellow-400 text-lg">1</span></span>
+            </div>
+            <canvas id="dodge-canvas" width="300" height="400" class="bg-gray-900 border-2 border-gray-700 rounded shadow-lg touch-none" style="max-width: 100%;"></canvas>
+            
+            <div class="mt-4 grid grid-cols-2 gap-4 w-full max-w-[300px]">
+                <button id="btn-dodge-left" class="bg-indigo-600 active:bg-indigo-500 text-white p-4 rounded-xl shadow-lg font-bold text-xl transition-transform active:scale-95 touch-manipulation">
+                    <i class="fas fa-arrow-left"></i> TRÁI
+                </button>
+                <button id="btn-dodge-right" class="bg-indigo-600 active:bg-indigo-500 text-white p-4 rounded-xl shadow-lg font-bold text-xl transition-transform active:scale-95 touch-manipulation">
+                    PHẢI <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+            <p class="text-gray-400 text-xs mt-3 text-center">💡 Mẹo: Né khối ĐỎ, ăn khối VÀNG!</p>
+        </div>
+    `;
+
+    const canvas = document.getElementById('dodge-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let player = { x: 130, y: 340, w: 40, h: 40, color: '#3b82f6' };
+    let enemies = [];
+    let score = 0;
+    let hp = 3;
+    let frameCount = 0;
+    let isGameOver = false;
+
+    const moveLeft = () => { if (player.x > 0 && !isGameOver) player.x -= 50; };
+    const moveRight = () => { if (player.x < 260 && !isGameOver) player.x += 50; };
+
+    document.onkeydown = (e) => {
+        if (e.key === 'ArrowLeft') moveLeft();
+        if (e.key === 'ArrowRight') moveRight();
+    };
+
+    document.getElementById('btn-dodge-left').onclick = (e) => { e.preventDefault(); moveLeft(); };
+    document.getElementById('btn-dodge-right').onclick = (e) => { e.preventDefault(); moveRight(); };
+
+    activeGameInterval = setInterval(() => {
+        if (isGameOver) return;
+        frameCount++;
+
+        let spawnRate = Math.max(15, 40 - Math.floor(score / 100) * 2); 
+        if (frameCount % spawnRate === 0) {
+            let isBonus = Math.random() < 0.15;
+            enemies.push({
+                x: Math.floor(Math.random() * 6) * 50 + 5, 
+                y: -40, w: 40, h: 40,
+                type: isBonus ? 'bonus' : 'danger',
+                color: isBonus ? '#fbbf24' : '#ef4444'
+            });
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = player.color;
+        ctx.shadowBlur = 15; ctx.shadowColor = player.color;
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.shadowBlur = 0;
+
+        for (let i = 0; i < enemies.length; i++) {
+            let e = enemies[i];
+            e.y += 4 + Math.floor(score / 200);
+
+            ctx.fillStyle = e.color;
+            ctx.fillRect(e.x, e.y, e.w, e.h);
+
+            if (player.x < e.x + e.w && player.x + player.w > e.x &&
+                player.y < e.y + e.h && player.y + player.h > e.y) {
+                
+                if (e.type === 'danger') {
+                    hp--;
+                    document.getElementById('dodge-hp').innerText = hp;
+                    canvas.classList.add('opacity-50'); setTimeout(()=>canvas.classList.remove('opacity-50'), 100);
+                    if (hp <= 0) endGame();
+                } else {
+                    score += 50;
+                }
+                enemies.splice(i, 1); i--; continue;
+            }
+
+            if (e.y > canvas.height) {
+                if (e.type === 'danger') score += 10;
+                enemies.splice(i, 1); i--;
+            }
+        }
+
+        document.getElementById('game-score-play').innerText = `Score: ${score}`;
+        document.getElementById('dodge-level').innerText = 1 + Math.floor(score / 300);
+
+    }, 30);
+
+    function endGame() {
+        isGameOver = true;
+        clearInterval(activeGameInterval);
+        document.onkeydown = null;
+        // GỌI HÀM LƯU ĐIỂM
+        if(typeof handleGameOver === 'function') handleGameOver(score);
+        else { alert(`Game Over! Score: ${score}`); closeGame(); }
+    }
+}
+
+// ==========================================
+// --- GAME 2: MATH (TOÁN HỌC) ---
+// ==========================================
+function initMathGame(container) {
+    clearActiveGame();
+    container.innerHTML = `<div class="text-white text-center w-full"><div id="math-q" class="text-5xl font-bold mb-8">5 + 5 = ?</div><input type="number" id="math-ans" class="text-black p-3 rounded text-center text-2xl w-32 focus:outline-none" autofocus><button id="btn-math-submit" class="block w-full bg-blue-500 mt-6 p-3 rounded font-bold hover:bg-blue-600 transition">Trả lời</button><div id="math-timer" class="mt-4 text-red-400 font-mono text-xl">Time: 30s</div></div>`;
+    
+    let score = 0, timeLeft = 30, a, b, res;
+    
+    const nextQ = () => {
+        a = Math.floor(Math.random() * 20);
+        b = Math.floor(Math.random() * 20);
+        res = a + b;
+        document.getElementById('math-q').innerText = `${a} + ${b} = ?`;
+        document.getElementById('math-ans').value = '';
+        document.getElementById('math-ans').focus();
+    };
+    
+    const check = () => {
+        if (parseInt(document.getElementById('math-ans').value) === res) {
+            score += 10;
+            document.getElementById('game-score-play').innerText = `Score: ${score}`;
+            nextQ();
+        }
+    };
+    
+    document.getElementById('btn-math-submit').onclick = check;
+    document.getElementById('math-ans').onkeydown = (e) => { if(e.key === 'Enter') check(); };
+
+    nextQ();
+    
+    activeGameInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('math-timer').innerText = `Time: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+            clearInterval(activeGameInterval);
+            // GỌI HÀM LƯU ĐIỂM
+            if(typeof handleGameOver === 'function') handleGameOver(score);
+            else { alert(`Hết giờ! Điểm: ${score}`); closeGame(); }
+        }
+    }, 1000);
+}
+
+// ==========================================
+// --- GAME 3: MEMORY (LẬT HÌNH) ---
+// ==========================================
+function initMemoryGame(container) {
+    clearActiveGame();
+    const icons = ['🍎', '🍌', '🍒', '🍇', '🍉', '🍊', '🍍', '🥝'];
+    let cards = [...icons, ...icons].sort(() => 0.5 - Math.random());
+    let flipped = [], matched = 0, score = 0;
+    
+    container.innerHTML = `<div class="grid grid-cols-4 gap-2 w-full max-w-sm mx-auto"></div>`;
+    const grid = container.querySelector('div');
+    
+    cards.forEach((icon) => {
+        const card = document.createElement('div');
+        card.className = 'h-16 w-full bg-blue-200 rounded cursor-pointer flex justify-center items-center text-3xl select-none transition-all';
+        card.innerHTML = `<span class="opacity-0">${icon}</span>`;
+        
+        card.onclick = () => {
+            if (card.classList.contains('bg-white') || flipped.length >= 2) return;
+            
+            card.classList.remove('bg-blue-200');
+            card.classList.add('bg-white', 'border-2', 'border-blue-500');
+            card.querySelector('span').classList.remove('opacity-0');
+            
+            flipped.push({ card, icon });
+            
+            if (flipped.length === 2) {
+                if (flipped[0].icon === flipped[1].icon) {
+                    matched++;
+                    score += 20;
+                    document.getElementById('game-score-play').innerText = `Score: ${score}`;
+                    flipped = [];
+                    if (matched === icons.length) {
+                        setTimeout(() => {
+                            // GỌI HÀM LƯU ĐIỂM
+                            if(typeof handleGameOver === 'function') handleGameOver(score);
+                            else { alert(`Thắng! Điểm: ${score}`); closeGame(); }
+                        }, 500);
+                    }
+                } else {
+                    setTimeout(() => {
+                        flipped.forEach(f => {
+                            f.card.classList.add('bg-blue-200');
+                            f.card.classList.remove('bg-white', 'border-2', 'border-blue-500');
+                            f.card.querySelector('span').classList.add('opacity-0');
+                        });
+                        flipped = [];
+                    }, 800);
+                }
+            }
+        };
+        grid.appendChild(card);
+    });
+}
+
+// ==========================================
+// --- GAME 4: CLICKER (BẤM NHANH) ---
+// ==========================================
+function initClickerGame(container) {
+    clearActiveGame();
+    container.innerHTML = `<div class="text-center w-full"><button id="btn-clicker" class="bg-red-500 active:bg-red-700 text-white rounded-full w-40 h-40 text-2xl font-bold shadow-lg transform transition active:scale-95 touch-manipulation">CLICK ME</button><div id="clicker-timer" class="mt-8 text-yellow-400 text-xl font-mono">10.0s</div></div>`;
+    
+    let clicks = 0, time = 10.0, active = true;
+    
+    document.getElementById('btn-clicker').onclick = () => {
+        if (active) {
+            clicks++;
+            document.getElementById('game-score-play').innerText = `Clicks: ${clicks}`;
+        }
+    };
+    
+    activeGameInterval = setInterval(() => {
+        time -= 0.1;
+        document.getElementById('clicker-timer').innerText = Math.max(0, time).toFixed(1) + 's';
+        if (time <= 0) {
+            active = false;
+            clearInterval(activeGameInterval);
+            // GỌI HÀM LƯU ĐIỂM
+            if(typeof handleGameOver === 'function') handleGameOver(clicks); // Lưu số clicks làm điểm
+            else { alert(`Hết giờ! ${clicks} clicks.`); closeGame(); }
+        }
+    }, 100);
+}
+
+// ==========================================
+// --- GAME 5: TYPER (GÕ PHÍM) ---
+// ==========================================
+function initTyperGame(container) {
+    clearActiveGame();
+    const words = ['code', 'bug', 'fix', 'api', 'app', 'web', 'git', 'css', 'js', 'html', 'react', 'node', 'java'];
+    let currentWord = '', score = 0, time = 30;
+    
+    container.innerHTML = `<div class="text-center w-full"><div id="typer-word" class="text-4xl font-bold text-green-400 mb-6 bg-gray-900 p-4 rounded select-none">START</div><input type="text" id="typer-input" class="w-full max-w-xs p-3 rounded text-center text-xl uppercase" placeholder="Gõ từ trên..." autocomplete="off"><div id="typer-timer" class="mt-4 text-gray-400">Time: 30s</div></div>`;
+    
+    const next = () => {
+        currentWord = words[Math.floor(Math.random() * words.length)];
+        document.getElementById('typer-word').innerText = currentWord.toUpperCase();
+        document.getElementById('typer-input').value = '';
+    };
+    next();
+    
+    const input = document.getElementById('typer-input');
+    input.focus();
+    input.oninput = () => {
+        if (input.value.toLowerCase() === currentWord) {
+            score++;
+            document.getElementById('game-score-play').innerText = `Words: ${score}`;
+            next();
+        }
+    };
+    
+    activeGameInterval = setInterval(() => {
+        time--;
+        document.getElementById('typer-timer').innerText = `Time: ${time}s`;
+        if (time <= 0) {
+            clearInterval(activeGameInterval);
+            // GỌI HÀM LƯU ĐIỂM
+            if(typeof handleGameOver === 'function') handleGameOver(score);
+            else { alert(`Hết giờ! ${score} từ.`); closeGame(); }
+        }
+    }, 1000);
+}
+
+window.loadActivityLogs = () => {
+    onSnapshot(query(collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity'), orderBy('ts', 'desc'), limit(50)), snap => {
+        const tbody = document.getElementById('admin-log-list');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        snap.forEach(d => {
+            const l = d.data();
+            tbody.innerHTML += `
+                <tr class="border-b text-xs hover:bg-gray-100 transition">
+                    <td class="p-3 text-gray-500">${l.ts ? new Date(l.ts.toDate()).toLocaleTimeString() : ''}</td>
+                    <td class="p-3 font-bold text-gray-700">${l.name}</td>
+                    <td class="p-3 text-blue-600 font-medium">${l.action}</td>
+                    <td class="p-3 text-gray-600">${l.details}</td>
+                </tr>`;
+        });
+    });
+};
 const mockSubjectData = {
     'Toán': {
         videos: [
-    // --- CHUYÊN ĐỀ 1: ỨNG DỤNG THỰC TẾ (TOÁN 12) ---
     { t: 'Ứng dụng đạo hàm toán thực tế P1', id: 'j4OK3ihNk_8' },
     { t: 'Ứng dụng đạo hàm toán thực tế P2', id: 'Mm8VmEU_ZnM' },
     { t: 'Ứng dụng đạo hàm toán thực tế P3', id: 'epoJkAC81LA' },
@@ -705,26 +942,14 @@ const mockSubjectData = {
     { t: 'Xác suất toàn phần', id: '2ZsjfFccH0s' },
     { t: 'Công thức Bayes xác suất', id: 'ZN4LSnQLEyc' },
     { t: 'Xác suất tổng hợp kiến thức ba khối', id: 'p-qb67DCrAE' }
-],
+        ],
         docs: [
-            
-           { t: '50 đề thi minh họa', url: 'https://drive.google.com/file/d/1RyXb7KnEsX2uXgOQFq4Pn8WqxO0anGtA/preview' }
+            { t: '50 đề thi minh họa', url: 'https://drive.google.com/file/d/1RyXb7KnEsX2uXgOQFq4Pn8WqxO0anGtA/preview' }
         ],
-        exams: [
-            { t: 'Đề thi thử THPTQG Toán - Đề 1', url: 'https://forms.google.com/example-quiz-1' },
-            { t: 'Kiểm tra 15 phút Đại số', url: 'https://forms.google.com/example-quiz-2' }
-        ]
+        exams: []
     },
-    'Lý': {
-        videos: [
-            { t: 'Dao động điều hòa', id: 'VIDEO_ID_LY_1' },
-            { t: 'Con lắc lò xo', id: 'VIDEO_ID_LY_2' }
-        ],
-        docs: [{ t: 'Sơ đồ tư duy Vật Lý 12', url: '#' }],
-        exams: [{ t: 'Đề ôn tập chương 1', url: '#' }]
-    },
-    'Hóa': {
-        videos: [
+    'Lý': { videos: [], docs: [], exams: [] },
+    'Hóa': { videos: [
      { t: 'Ester – lipit', id: '8nfiPbueiPI' },
     { t: 'Xà phòng chất giặt rửa', id: 'C3jy7oHOmM8' },
     { t: 'Glucose – Frutose', id: 'XLPKhuRhCBc' },
@@ -750,7 +975,7 @@ const mockSubjectData = {
     { t: 'Phức Chất', id: 'lMD8Pgy1VMo' },
     { t: 'Chữa đề thi minh họa', id: 'xQaFkr6Tffc' }
         ],
-        docs: [
+    docs:  [
   { t: '17. THPT Diên Hồng - TP Hồ Chí Minh (Lần 1)', url: 'https://drive.google.com/file/d/1-npZX-S6gHroRmB1PrrxUR63Zz7OsA-l/preview' },
   { t: '31. Sở GDĐT Bắc Ninh (Đề tập huấn)', url: 'https://drive.google.com/file/d/128qwE7iP5a1gbqUwBt0OK5PlllaPR7wk/preview' },
   { t: '29. THPT Hậu Lộc 1 - Thanh Hóa', url: 'https://drive.google.com/file/d/13FB6erjFXLV8bl5bTzjK1RyE49blNL0w/preview' },
@@ -799,15 +1024,11 @@ const mockSubjectData = {
   { t: '47. Sở GDĐT Ninh Bình (Lần 2)', url: 'https://drive.google.com/file/d/1vNK8QB5l2aba_aU3Uhgkw38Lwm0nWBIW/preview' },
   { t: '32. Sở GDĐT Bắc Giang (Lần 1)', url: 'https://drive.google.com/file/d/1wQKv-2TK5WGtgHB7aDfjfUgvdZyIyCEz/preview' }
 ],
-        exams: []
-    },
-    'Văn': {
-        videos: [{ t: 'Vợ chồng A Phủ', id: 'VIDEO_ID_VAN' }],
-        docs: [{ t: 'Văn mẫu phân tích Mị', url: '#' }],
-        exams: [{ t: 'Đề nghị luận xã hội tháng 10', url: '#' }]
-    },
-    'Anh': {
-        videos: [
+    exams: [
+
+    ] },
+    'Văn': { videos: [], docs: [], exams: [] },
+    'Anh': { videos: [
     // --- CHUYÊN ĐỀ 1: LÝ THUYẾT THÌ VÀ TỔNG QUAN ---
     { t: 'Lý thuyết Thì P1', id: 'RhTBbwdubCE' },
     { t: 'Lý thuyết Thì P2', id: '7zmvNiTciPE' },
@@ -905,84 +1126,362 @@ const mockSubjectData = {
   { t: '53. Liên trường THPT Nghệ An (Mã đề Lẻ)', url: 'https://drive.google.com/file/d/1x5kpd_NYr926HE7SJjmCmYvhOdh-6MW6/preview' },
   { t: '47. Cụm liên trường THPT Thanh Hóa (Bản 2)', url: 'https://drive.google.com/file/d/1xG95y2ojmmCl75jWqP9AlTsLqMlyVayD/preview' }
 ],
-        exams: [{ t: 'Mock Test IELTS Reading', url: '#' }]
-    },
-    'default': {
-        videos: [{ t: 'Bài học mẫu', id: 'CL13X-8o4h0?si' }],
-        docs: [],
-        exams: []
-    }
+        exams: [] },
+    'default': { videos: [], docs: [], exams: [] }
 };
 
-// --- 2. HÀM MỞ MÔN HỌC ---
 window.openSubject = (subj) => {
     const data = mockSubjectData[subj] || mockSubjectData['default'];
     document.getElementById('detail-subject-title').innerText = `Môn ${subj}`;
-
-    // Render Video (Giữ nguyên)
     document.getElementById('subj-content-video').innerHTML = data.videos.map((v, i) => `
         <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center">
             <span class="font-bold text-sm">Bài ${i+1}: ${v.t}</span>
             <button onclick="playVideo('${v.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700">Học</button>
         </div>
     `).join('') || '<p class="text-gray-400 mt-2">Chưa có video.</p>';
-
-    // Render Docs (Sửa: Dùng openEmbedModal)
-    const docContainer = document.getElementById('subj-content-doc');
-    if (docContainer) {
-        docContainer.innerHTML = data.docs.map(d => `
-            <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-blue-500">
-                <span class="font-bold text-sm"><i class="fas fa-file-pdf text-blue-500"></i> ${d.t}</span>
-                <button onclick="openEmbedModal('${d.url}', '${d.t}')" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                    <i class="fas fa-eye"></i> Xem ngay
-                </button>
-            </div>
-        `).join('') || '<p class="text-gray-400 mt-2">Chưa có tài liệu.</p>';
-    }
-
-    // Render Exams (Sửa: Dùng openEmbedModal)
-    const examContainer = document.getElementById('subj-content-exam');
-    if (examContainer) {
-        examContainer.innerHTML = data.exams.map(e => `
-            <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-green-500">
-                <span class="font-bold text-sm"><i class="fas fa-pen-nib text-green-500"></i> ${e.t}</span>
-                <button onclick="openEmbedModal('${e.url}', '${e.t}')" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                    <i class="fas fa-edit"></i> Làm bài
-                </button>
-            </div>
-        `).join('') || '<p class="text-gray-400 mt-2">Chưa có đề thi.</p>';
-    }
-
+    document.getElementById('subj-content-doc').innerHTML = data.docs.map(d => `
+        <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-blue-500">
+            <span class="font-bold text-sm"><i class="fas fa-file-pdf text-blue-500"></i> ${d.t}</span>
+            <button onclick="openEmbedModal('${d.url}', '${d.t}')" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"><i class="fas fa-eye"></i> Xem</button>
+        </div>
+    `).join('') || '';
     switchSubjectTab('video');
-    nav('subject-detail');
+    window.handleNavReal('subject-detail');
 };
 
-// --- 3. HÀM XỬ LÝ MODAL EMBED (MỚI) ---
 window.openEmbedModal = (url, title) => {
-    // Cập nhật tiêu đề và link iframe
     document.getElementById('embed-title').innerText = title;
     document.getElementById('embed-frame').src = url;
-    
-    // Hiển thị modal
     document.getElementById('embed-modal').classList.remove('hidden');
 };
-
 window.closeEmbedModal = () => {
     document.getElementById('embed-modal').classList.add('hidden');
-    // Xóa src để dừng tải/dừng video khi đóng
     document.getElementById('embed-frame').src = '';
 };
 
-// --- GIỮ LẠI CÁC HÀM CŨ ---
-window.switchSubjectTab = (tab) => { /* Code cũ giữ nguyên */ 
-    ['video', 'doc', 'exam'].forEach(t => { const btn = document.getElementById(`tab-subj-${t}`); const content = document.getElementById(`subj-content-${t}`); if(t===tab) { btn.classList.add('border-b-2', 'border-indigo-600', 'text-indigo-600'); btn.classList.remove('text-gray-500'); content.classList.remove('hidden-section'); } else { btn.classList.remove('border-b-2', 'border-indigo-600', 'text-indigo-600'); btn.classList.add('text-gray-500'); content.classList.add('hidden-section'); } });
+window.switchSubjectTab = (tab) => {
+    ['video', 'doc', 'exam'].forEach(t => {
+        const btn = document.getElementById(`tab-subj-${t}`);
+        const content = document.getElementById(`subj-content-${t}`);
+        if(t===tab) { btn.classList.add('border-b-2', 'border-indigo-600', 'text-indigo-600'); btn.classList.remove('text-gray-500'); content.classList.remove('hidden-section'); }
+        else { btn.classList.remove('border-b-2', 'border-indigo-600', 'text-indigo-600'); btn.classList.add('text-gray-500'); content.classList.add('hidden-section'); }
+    });
 };
-window.playVideo = (vidId) => { /* Code cũ giữ nguyên */ 
+window.playVideo = (vidId) => {
     document.getElementById('video-modal').classList.remove('hidden'); if(player) player.loadVideoById(vidId); else player = new YT.Player('youtube-player', { height: '100%', width: '100%', videoId: vidId, playerVars: { 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0 }, events: { 'onStateChange': onPlayerStateChange } }); 
 };
 function onPlayerStateChange(event) { if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); else clearInterval(videoTimer); }
 function strictVideoLoop() { if(!player || !player.getDuration) return; const cur = player.getCurrentTime(), dur = player.getDuration(), per = (cur/dur)*100; document.getElementById('video-bar').style.width = per + '%'; document.getElementById('video-percent').innerText = Math.round(per) + '%'; const m = Math.floor(cur/60), s = Math.floor(cur%60); document.getElementById('video-time').innerText = `${m}:${s<10?'0'+s:s}`; if (player.isMuted()) player.unMute(); }
 window.closeVideoModal = () => { document.getElementById('video-modal').classList.add('hidden'); if(player && player.stopVideo) player.stopVideo(); clearInterval(videoTimer); };
 
+// ============================================================
+// --- LOGIC QUẢN LÝ NHÓM NÂNG CAO (ĐÃ CHUẨN HÓA) ---
+// ============================================================
 
+// 1. Mở chi tiết nhóm (Thay thế hoàn toàn openGroupMembers cũ)
+window.openGroupDetail = async (gid) => {
+    currentViewingGroupId = gid;
+    const modal = document.getElementById('modal-group-detail');
+    const nameDisplay = document.getElementById('group-detail-name');
+    const idDisplay = document.getElementById('group-detail-id');
+    
+    modal.classList.remove('hidden');
+    document.getElementById('group-members-list').innerHTML = '<p class="text-gray-400 text-center">Đang tải...</p>';
+    document.getElementById('group-docs-list').innerHTML = '<p class="text-gray-400 text-center">Đang tải...</p>';
 
+    const gSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid));
+    if(!gSnap.exists()) { toast('Nhóm không tồn tại!', 'error'); modal.classList.add('hidden'); loadGroups(); return; }
+
+    const gData = gSnap.data();
+    nameDisplay.innerText = gData.name;
+    idDisplay.innerText = gid;
+
+    const isLeader = gData.leaderId === currentUser.uid;
+    const isAdmin = userProfile.role === 'admin';
+    const canManage = isLeader || isAdmin;
+
+    const adminActions = document.getElementById('group-admin-actions');
+    const uploadArea = document.getElementById('group-upload-area');
+    
+    if (canManage) {
+        if(adminActions) adminActions.classList.remove('hidden');
+        if(uploadArea) uploadArea.classList.remove('hidden');
+    } else {
+        if(adminActions) adminActions.classList.add('hidden');
+        if(uploadArea) uploadArea.classList.add('hidden');
+    }
+
+    // Thêm nút Rời nhóm vào footer nếu không phải Leader
+    if(!isLeader && !isAdmin) {
+        adminActions.classList.remove('hidden');
+        adminActions.innerHTML = `<button onclick="leaveGroup('${gid}')" class="w-full bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200"><i class="fas fa-sign-out-alt"></i> Rời nhóm này</button>`;
+    } else if (canManage) {
+        // Reset lại nội dung admin nếu là leader (vì ở trên có thể bị ghi đè bởi nút Leave)
+        adminActions.innerHTML = `
+            <span class="text-xs text-gray-400"><i class="fas fa-shield-alt"></i> Khu vực quản trị</span>
+            <button onclick="handleDeleteGroup()" class="bg-red-100 text-red-600 px-4 py-2 rounded hover:bg-red-600 hover:text-white transition font-bold text-sm"><i class="fas fa-trash"></i> Xóa Nhóm</button>
+        `;
+    }
+
+    switchGroupTab('members');
+    renderGroupMembers(gData, gid, canManage);
+    renderGroupDocs(gData, gid, canManage);
+};
+
+window.closeGroupModal = () => {
+    document.getElementById('modal-group-detail').classList.add('hidden');
+    currentViewingGroupId = null;
+};
+
+window.switchGroupTab = (tabName) => {
+    const tabMem = document.getElementById('tab-grp-members');
+    const tabDoc = document.getElementById('tab-grp-docs');
+    const contentMem = document.getElementById('grp-tab-members');
+    const contentDoc = document.getElementById('grp-tab-docs');
+
+    if (tabName === 'members') {
+        tabMem.className = "flex-1 py-2 font-bold border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50";
+        tabDoc.className = "flex-1 py-2 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50";
+        contentMem.classList.remove('hidden-section');
+        contentDoc.classList.add('hidden-section');
+    } else {
+        tabDoc.className = "flex-1 py-2 font-bold border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50";
+        tabMem.className = "flex-1 py-2 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50";
+        contentDoc.classList.remove('hidden-section');
+        contentMem.classList.add('hidden-section');
+    }
+};
+
+async function renderGroupMembers(gData, gid, canManage) {
+    const container = document.getElementById('group-members-list');
+    container.innerHTML = '';
+    
+    for (const uid of gData.members) {
+        let uName = 'Người dùng', uAva = '';
+        try {
+            const uSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid));
+            if(uSnap.exists()) {
+                uName = uSnap.data().displayName;
+                uAva = uSnap.data().avatar;
+            }
+        } catch(e) {}
+
+        const isMe = uid === currentUser.uid;
+        const isMemberLeader = uid === gData.leaderId;
+        
+        let actionBtn = '';
+        if (canManage && !isMe && !isMemberLeader) {
+            actionBtn = `<button onclick="kickMember('${gid}', '${uid}', '${uName}')" class="text-red-500 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold border border-red-200">Kích</button>`;
+        }
+
+        container.innerHTML += `
+            <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded border-b last:border-0">
+                <div class="flex items-center gap-2">
+                    <img src="${uAva || 'https://ui-avatars.com/api/?name=U'}" class="w-8 h-8 rounded-full bg-gray-200">
+                    <div>
+                        <p class="text-sm font-bold ${isMemberLeader ? 'text-indigo-700' : 'text-gray-700'}">${uName} ${isMe ? '(Bạn)' : ''}</p>
+                        ${isMemberLeader ? '<span class="text-[10px] bg-indigo-100 text-indigo-600 px-1 rounded">Trưởng nhóm</span>' : ''}
+                    </div>
+                </div>
+                <div>${actionBtn}</div>
+            </div>
+        `;
+    }
+}
+
+// Hàm kích thành viên (Đã sửa để reload đúng modal)
+window.kickMember = async (gid, uid, name) => {
+    if(!confirm(`Kích ${name} khỏi nhóm?`)) return;
+    try {
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid), {
+            members: arrayRemove(uid)
+        });
+        toast(`Đã kích ${name}.`, "success");
+        openGroupDetail(gid); // Quan trọng: Reload modal chi tiết
+    } catch(e) { toast("Lỗi: " + e.message, 'error'); }
+};
+
+// Hàm rời nhóm (Đã sửa)
+window.leaveGroup = async (gid) => {
+    if(!confirm("Rời nhóm này?")) return;
+    try {
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid), {
+            members: arrayRemove(currentUser.uid)
+        });
+        toast("Đã rời nhóm.", "success");
+        closeGroupModal();
+        loadGroups();
+    } catch(e) { toast("Lỗi: " + e.message, 'error'); }
+};
+
+function renderGroupDocs(gData, gid, canManage) {
+    const container = document.getElementById('group-docs-list');
+    const docs = gData.documents || [];
+    if (docs.length === 0) { container.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm"><i class="fas fa-folder-open text-2xl mb-2"></i><br>Chưa có tài liệu.</div>`; return; }
+    container.innerHTML = docs.map((docItem, index) => `
+        <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition mb-2">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <div class="text-red-500 text-xl"><i class="fas fa-file-alt"></i></div>
+                <div class="overflow-hidden">
+                    <p class="text-sm font-bold truncate text-gray-700">${docItem.name}</p>
+                    <p class="text-[10px] text-gray-400">${docItem.date} • ${docItem.uploaderName}</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="downloadGroupDoc('${gid}', ${index})" class="text-blue-600 hover:bg-blue-50 p-2 rounded"><i class="fas fa-download"></i></button>
+                ${canManage ? `<button onclick="deleteGroupDoc('${gid}', ${index})" class="text-red-500 hover:bg-red-50 p-2 rounded"><i class="fas fa-trash"></i></button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+window.handleUploadGroupDoc = async () => {
+    const file = document.getElementById('group-file-input').files[0];
+    if (!file) return toast('Chọn file!', 'error');
+    if (file.size > 1024 * 1024) return toast('File > 1MB!', 'error');
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const docObj = { name: file.name, data: e.target.result, type: file.type, date: new Date().toLocaleDateString('vi-VN'), uploaderId: currentUser.uid, uploaderName: userProfile.displayName };
+        try {
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', currentViewingGroupId), { documents: arrayUnion(docObj) });
+            toast('Upload xong!', 'success');
+            document.getElementById('group-file-input').value = '';
+            openGroupDetail(currentViewingGroupId);
+        } catch (err) { toast('Lỗi: ' + err.message, 'error'); }
+    };
+    reader.readAsDataURL(file);
+};
+
+window.downloadGroupDoc = async (gid, index) => {
+    try {
+        const gSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid));
+        const file = gSnap.data().documents[index];
+        const a = document.createElement('a'); a.href = file.data; a.download = file.name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch(e) { toast('Lỗi tải file', 'error'); }
+};
+
+window.deleteGroupDoc = async (gid, index) => {
+    if(!confirm('Xóa file này?')) return;
+    try {
+        const gRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', gid);
+        const docs = (await getDoc(gRef)).data().documents;
+        await updateDoc(gRef, { documents: arrayRemove(docs[index]) });
+        toast('Đã xóa!', 'success');
+        openGroupDetail(gid);
+    } catch(e) { toast('Lỗi: ' + e.message, 'error'); }
+};
+
+window.handleDeleteGroup = async () => {
+    if (prompt("Nhập 'XOA' để xác nhận:") !== 'XOA') return;
+    try {
+        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'groups', currentViewingGroupId));
+        toast('Đã giải tán nhóm!', 'success');
+        closeGroupModal();
+        loadGroups();
+    } catch (e) { toast('Lỗi: ' + e.message, 'error'); }
+};
+// ============================================
+// --- BỔ SUNG: BẢNG XẾP HẠNG & LƯU ĐIỂM ---
+// ============================================
+
+// 1. Hàm tải dữ liệu bảng xếp hạng
+window.loadLeaderboard = async () => {
+    const tbody = document.getElementById('leaderboard-list');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-gray-500">Đang tải dữ liệu...</td></tr>';
+
+    try {
+        // Lấy danh sách user từ Firebase (giới hạn 50 người)
+        const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory'), limit(50));
+        const snap = await getDocs(q);
+        let users = [];
+
+        snap.forEach(d => {
+            const u = d.data();
+            // Nếu chưa có totalScore thì mặc định là 0
+            users.push({ ...u, totalScore: u.totalScore || 0 });
+        });
+
+        // Sắp xếp: Điểm cao lên đầu
+        users.sort((a, b) => b.totalScore - a.totalScore);
+
+        // Render ra HTML
+        tbody.innerHTML = '';
+        users.forEach((u, index) => {
+            let rankDisplay = `<span class="font-bold text-gray-500">#${index + 1}</span>`;
+            let rowClass = "border-b hover:bg-gray-50";
+            
+            // Trang trí Top 3
+            if (index === 0) {
+                rankDisplay = '<span class="text-2xl">🥇</span>';
+                rowClass = "border-b bg-yellow-50 hover:bg-yellow-100";
+            } else if (index === 1) {
+                rankDisplay = '<span class="text-2xl">🥈</span>';
+            } else if (index === 2) {
+                rankDisplay = '<span class="text-2xl">🥉</span>';
+            }
+
+            tbody.innerHTML += `
+                <tr class="${rowClass} transition">
+                    <td class="p-3 text-center align-middle">${rankDisplay}</td>
+                    <td class="p-3 flex items-center">
+                        <img src="${u.avatar}" class="w-10 h-10 rounded-full mr-3 border border-gray-200 shadow-sm">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800 text-sm">${u.displayName}</span>
+                            <span class="text-[10px] text-gray-400">${u.role.toUpperCase()}</span>
+                        </div>
+                    </td>
+                    <td class="p-3 text-center font-bold text-indigo-600 text-lg">${u.totalScore}</td>
+                </tr>
+            `;
+        });
+
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-gray-400">Chưa có ai chơi game cả. Hãy là người đầu tiên!</td></tr>';
+        }
+
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+    }
+};
+
+// 2. Hàm lưu điểm cộng dồn vào Profile User
+window.handleGameOver = async (score) => {
+    // Dừng game loop
+    if (gameInterval) clearInterval(gameInterval);
+    document.removeEventListener('keydown', handleSnakeKey); // Xóa sự kiện nếu là game Rắn
+
+    // Thông báo
+    alert(`Kết thúc game! Bạn đạt được: ${score} điểm.`);
+    closeGame();
+
+    if (score <= 0) return; // Không lưu nếu 0 điểm
+
+    try {
+        const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const currentScore = userSnap.data().totalScore || 0;
+            const newTotal = currentScore + score;
+
+            // Cập nhật điểm mới vào Firestore
+            await updateDoc(userRef, { 
+                totalScore: newTotal,
+                lastGamePlayed: serverTimestamp()
+            });
+            
+            // Cập nhật cả ở profile gốc
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'info'), { 
+                totalScore: newTotal 
+            });
+
+            toast(`+${score} điểm tích lũy! Tổng: ${newTotal}`, 'success');
+        }
+    } catch (e) {
+        console.error("Lỗi lưu điểm:", e);
+    }
+};
