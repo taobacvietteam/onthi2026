@@ -16,6 +16,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const APP_ID = 'onthi-2026';
 
+// CONSTANTS
+const ADMIN_EMAILS = ['taobacvietteam@gmail.com', 'admin@gmail.com']; // Thêm admin@gmail.com vào danh sách admin
+
 // STATE
 let currentUser = null;
 let userProfile = null;
@@ -25,7 +28,7 @@ let player = null, videoTimer = null;
 let gameInterval = null;
 let meetingApi = null;
 let currentAdminTab = 'users';
-let currentViewingGroupId = null; // Biến quan trọng cho quản lý nhóm
+let currentViewingGroupId = null;
 
 // INJECT YOUTUBE API
 const tag = document.createElement('script');
@@ -36,13 +39,16 @@ firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 // --- HELPER FUNCTIONS ---
 function toast(msg, type='info') {
     const t = document.createElement('div');
-    t.className = `p-4 rounded-lg text-white shadow-xl fade-in flex items-center ${type==='error'?'bg-red-500':'bg-green-600'} text-sm max-w-[90vw]`;
+    t.className = `p-4 rounded-lg text-white shadow-xl fade-in flex items-center ${type==='error'?'bg-red-500':'bg-green-600'} text-sm max-w-[90vw] z-50 fixed bottom-5 right-5`;
     t.innerHTML = `<i class="fas ${type==='error'?'fa-exclamation-circle':'fa-check-circle'} mr-2"></i> ${msg}`;
-    document.getElementById('toast-container').appendChild(t);
+    document.body.appendChild(t); // Append to body to ensure visibility
     setTimeout(() => t.remove(), 3000);
 }
 
-// --- AUTH ---
+// ==========================================
+// --- AUTH SYSTEM (MODIFIED) ---
+// ==========================================
+
 window.handleLogin = async () => {
     try {
         const email = document.getElementById('auth-email').value;
@@ -52,30 +58,63 @@ window.handleLogin = async () => {
     } catch(e) { toast('Lỗi đăng nhập: ' + e.message, 'error'); }
 };
 
-window.handleRegister = async () => {
-    const emailEl = document.getElementById('auth-email');
-    const passEl = document.getElementById('auth-pass');
-    // Cần thêm ID cho nút đăng ký trong HTML để code này hoạt động
-    const btn = document.getElementById('btn-register-submit'); 
+// 1. Thay đổi handleRegister: Không tạo user ngay mà hiện Modal thanh toán
+window.handleRegister = () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const pass = document.getElementById('auth-pass').value.trim();
 
-    const email = emailEl.value;
-    const pass = passEl.value;
+    if(!email || !pass) return toast('Vui lòng nhập đầy đủ Email và Mật khẩu!', 'error');
+    if(pass.length < 6) return toast('Mật khẩu phải từ 6 ký tự trở lên!', 'error');
 
-    if(!email || !pass) return toast('Vui lòng nhập đầy đủ thông tin', 'error');
+    // Hiện modal thanh toán QR
+    showPaymentModal(email);
+};
 
-    // 1. Khóa nút bấm và đổi text để người dùng biết đang chạy
-    if(btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+// 2. Hàm hiện Modal QR (Tích hợp từ script cũ)
+window.showPaymentModal = function(email) {
+    const modal = document.getElementById('modal-payment-required');
+    if (!modal) return toast('Lỗi: Không tìm thấy modal thanh toán trong HTML', 'error');
+
+    const qrImg = document.getElementById('payment-qr-img');
+    const contentDisplay = document.getElementById('payment-content-display');
+
+    if (contentDisplay) contentDisplay.innerText = email;
+
+    // Tạo mã QR VietQR
+    const bankId = 'MB';
+    const accountNo = '0344750735';
+    const template = 'compact';
+    const accountName = 'NGUYEN VU TAO';
+    const content = email; 
+    
+    const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-${template}.jpg?addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(accountName)}`;
+    
+    if (qrImg) qrImg.src = qrUrl;
+    
+    modal.classList.remove('hidden');
+};
+
+// 3. Hàm xác nhận đã chuyển khoản -> Tiến hành tạo tài khoản Firebase
+window.confirmPaymentSent = async function() {
+    const email = document.getElementById('auth-email').value.trim();
+    const pass = document.getElementById('auth-pass').value.trim();
+    const modal = document.getElementById('modal-payment-required');
+    const btnConfirm = modal.querySelector('button.bg-blue-600'); // Giả sử nút confirm có class này
+
+    if (btnConfirm) {
+        btnConfirm.disabled = true;
+        btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
     }
 
     try {
-        // 2. Tạo User Authentication
+        // Tạo User Authentication
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         
-        const role = email === 'taobacvietteam@gmail.com' ? 'admin' : 'student';
+        const isAdmin = ADMIN_EMAILS.includes(email);
+        const role = isAdmin ? 'admin' : 'student';
+        // Admin mặc định active, user thường phải chờ duyệt (pending)
+        const status = isAdmin ? 'active' : 'pending';
         
-        // 3. Tạo dữ liệu Profile (Thêm totalScore = 0 để hiện BXH)
         const profile = {
             uid: cred.user.uid,
             email, 
@@ -83,22 +122,28 @@ window.handleRegister = async () => {
             displayName: email.split('@')[0], 
             avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=random`,
             isBlocked: false,
+            status: status, // TRẠNG THÁI QUAN TRỌNG
             createdAt: serverTimestamp(),
-            totalScore: 0 // QUAN TRỌNG: Khởi tạo điểm bằng 0
+            totalScore: 0
         };
 
-        // 4. Lưu song song vào 2 nơi (nhanh gấp đôi cách cũ)
+        // Lưu song song vào 2 nơi
         await Promise.all([
             setDoc(doc(db, 'artifacts', APP_ID, 'users', cred.user.uid, 'profile', 'info'), profile),
             setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', cred.user.uid), profile)
         ]);
 
-        toast('Đăng ký thành công! Đang chuyển hướng...', 'success');
-        // Không cần làm gì thêm, onAuthStateChanged sẽ tự động bắt sự kiện và chuyển trang
+        modal.classList.add('hidden');
+        
+        if (status === 'pending') {
+            toast('Đăng ký thành công! Vui lòng chờ Admin duyệt tài khoản.', 'success');
+            // User sẽ bị signout ngay lập tức ở onAuthStateChanged vì status pending
+        } else {
+            toast('Đăng ký Admin thành công!', 'success');
+        }
 
     } catch(e) {
         console.error(e);
-        // Việt hóa lỗi phổ biến
         if(e.code === 'auth/email-already-in-use') {
             toast('Email này đã được sử dụng!', 'error');
         } else if (e.code === 'auth/weak-password') {
@@ -107,22 +152,39 @@ window.handleRegister = async () => {
             toast('Lỗi: ' + e.message, 'error');
         }
     } finally {
-        // 5. Mở lại nút bấm dù thành công hay thất bại
-        if(btn) {
-            btn.disabled = false;
-            btn.innerText = 'Đăng ký';
+        if (btnConfirm) {
+            btnConfirm.disabled = false;
+            btnConfirm.innerText = 'Đã chuyển khoản - Đăng ký ngay';
         }
     }
 };
 
+window.closePaymentModal = () => {
+    document.getElementById('modal-payment-required').classList.add('hidden');
+};
+
 window.handleLogout = () => signOut(auth).then(() => window.location.reload());
 
+// 4. Logic kiểm tra Active/Pending khi đăng nhập
 onAuthStateChanged(auth, async (user) => {
     if(user) {
         const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'info'));
         if(snap.exists()) {
             userProfile = snap.data();
-            if(userProfile.isBlocked) { signOut(auth); alert('Tài khoản bị khóa!'); return; }
+            
+            // --- KIỂM TRA TRẠNG THÁI ---
+            if(userProfile.isBlocked) { 
+                signOut(auth); 
+                alert('Tài khoản bị khóa!'); 
+                return; 
+            }
+
+            // Nếu user chưa được duyệt (status = pending) -> Kick ra
+            if(userProfile.status === 'pending') {
+                signOut(auth);
+                alert('Tài khoản của bạn đang chờ Admin (Nguyễn Vũ Tạo) duyệt thanh toán!\nVui lòng liên hệ Admin hoặc chờ đợi.');
+                return;
+            }
             
             currentUser = user;
             
@@ -133,7 +195,6 @@ onAuthStateChanged(auth, async (user) => {
             if(userProfile.role === 'admin') document.getElementById('admin-menu').classList.remove('hidden');
             if(userProfile.role === 'leader' || userProfile.role === 'admin') document.getElementById('btn-create-group').classList.remove('hidden');
 
-            // Hook nav thật vào window để HTML gọi
             window.handleNavReal = (viewId) => {
                 document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
                 const target = document.getElementById(`view-${viewId}`);
@@ -144,7 +205,7 @@ onAuthStateChanged(auth, async (user) => {
                 if(viewId === 'games') loadLeaderboard();
             };
 
-            logActivity('login', 'Đăng nhập hệ thống');
+            // logActivity('login', 'Đăng nhập hệ thống'); // Optional logging
             window.handleNavReal('dashboard');
         } else { 
             signOut(auth); 
@@ -358,7 +419,7 @@ function renderMsg(msg, msgId, container, colName, docId) {
     const isMe = msg.uid === currentUser.uid;
     let reactionHtml = '';
 
-    // Xử lý hiển thị reaction đã thả (như cũ)
+    // Xử lý hiển thị các reaction đã thả
     if (msg.reactions) {
         const counts = {};
         Object.values(msg.reactions).forEach(r => counts[r] = (counts[r] || 0) + 1);
@@ -367,53 +428,48 @@ function renderMsg(msg, msgId, container, colName, docId) {
                 ${k} <span class="text-gray-500 font-semibold">${counts[k]}</span>
             </span>`
         ).join('');
-        if (reactionIcons) reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'} flex gap-1 z-10 whitespace-nowrap">${reactionIcons}</div>`;
+        
+        if (reactionIcons) {
+            reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'} flex gap-1 z-10 whitespace-nowrap">${reactionIcons}</div>`;
+        }
     }
 
-    // --- CẤU HÌNH VỊ TRÍ ---
-    // 1. Nút mặt cười: isMe thì nằm trái tin nhắn, !isMe nằm phải.
     const btnPositionClass = isMe ? '-left-8' : '-right-8';
-    
-    // 2. Bảng Reaction (QUAN TRỌNG):
-    // - Luôn căn lề theo hướng của tin nhắn để không bị trôi ra ngoài màn hình.
-    // - isMe (tin bên phải) -> Căn phải (right-0)
-    // - !isMe (tin bên trái) -> Căn trái (left-0)
-    // - bottom-[calc(100%+0.5rem)]: Đẩy nó lên trên đầu tin nhắn cách 1 đoạn nhỏ.
-    const pickerPositionClass = isMe ? 'right-0 origin-bottom-right' : 'left-0 origin-bottom-left';
+    const pickerPositionClass = isMe ? 'right-0' : 'left-0';
 
     const html = `
-        <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative mb-8 px-2">
-            ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end shadow-sm flex-shrink-0">` : ''}
+        <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative mb-6 px-2">
+            ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end shadow-sm">` : ''}
             
             <div class="max-w-[80%] md:max-w-[70%] relative group">
                 ${!isMe ? `<p class="text-xs text-gray-400 ml-1 mb-1">${msg.name}</p>` : ''}
                 
-                <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative z-0">
+                <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative">
                     ${msg.img ? `<img src="${msg.img}" class="rounded-lg mb-2 max-w-full block">` : ''}
                     ${msg.text ? `<p class="break-words text-sm md:text-base leading-snug">${msg.text}</p>` : ''}
+                    
+                    <button class="reaction-trigger absolute top-1/2 transform -translate-y-1/2 ${btnPositionClass} 
+                                   text-gray-400 hover:text-yellow-500 bg-white rounded-full w-6 h-6 flex items-center justify-center 
+                                   shadow-sm border transition-all opacity-0 group-hover:opacity-100 z-20" 
+                            onclick="toggleReactionPicker('${msgId}')">
+                        <i class="far fa-smile text-xs"></i>
+                    </button>
+
+                    <div id="picker-${msgId}" class="reaction-picker hidden absolute bottom-full mb-2 ${pickerPositionClass} 
+                                               bg-white shadow-xl border rounded-full p-1.5 flex gap-1 z-50 min-w-max">
+                        ${['❤️','😂','😮','😢','👍'].map(emoji => 
+                            `<span class="reaction-btn cursor-pointer hover:bg-gray-100 p-1.5 rounded-full transition-transform hover:scale-125 text-lg select-none" 
+                                   onclick="addReaction('${colName}', '${docId}', '${msgId}', '${emoji}')">${emoji}</span>`
+                        ).join('')}
+                    </div>
                 </div>
-
-                <button class="reaction-trigger absolute top-1/2 transform -translate-y-1/2 ${btnPositionClass} 
-                               text-gray-400 hover:text-yellow-500 bg-white rounded-full w-6 h-6 flex items-center justify-center 
-                               shadow-sm border transition-all opacity-0 group-hover:opacity-100 z-10" 
-                        onclick="toggleReactionPicker('${msgId}')">
-                    <i class="far fa-smile text-xs"></i>
-                </button>
-
-                <div id="picker-${msgId}" class="reaction-picker hidden absolute bottom-[calc(100%+5px)] ${pickerPositionClass} 
-                                                bg-white shadow-xl border rounded-full px-2 py-1 flex gap-2 z-50 min-w-max animate-fade-in-up">
-                    ${['❤️','😂','😮','😢','👍'].map(emoji => 
-                        `<span class="reaction-btn cursor-pointer hover:bg-gray-100 p-1.5 rounded-full transition-transform hover:scale-125 text-xl select-none leading-none" 
-                               onclick="addReaction('${colName}', '${docId}', '${msgId}', '${emoji}')">${emoji}</span>`
-                    ).join('')}
-                </div>
-
                 ${reactionHtml}
             </div>
         </div>
     `;
     container.insertAdjacentHTML('beforeend', html);
 }
+
 window.toggleReactionPicker = (msgId) => {
     document.querySelectorAll('.reaction-picker').forEach(el => { if (el.id !== `picker-${msgId}`) el.classList.add('hidden'); });
     const p = document.getElementById(`picker-${msgId}`);
@@ -451,7 +507,9 @@ window.startGroupMeeting = (groupId) => {
 };
 window.endMeeting = () => { if(meetingApi) meetingApi.dispose(); window.handleNavReal('groups'); };
 
-// --- ADMIN FEATURES ---
+// ==========================================
+// --- ADMIN FEATURES (MODIFIED) ---
+// ==========================================
 window.switchAdminTab = (tab) => {
     currentAdminTab = tab;
     document.getElementById('admin-tab-users').classList.toggle('hidden-section', tab !== 'users');
@@ -465,10 +523,26 @@ window.loadAdminStats = () => {
          snap.forEach(d => {
              const u = d.data();
              const isSelf = d.id === currentUser.uid;
+             
+             // --- LOGIC TRẠNG THÁI ---
+             let statusBadge = '';
+             let actionBtn = '';
+
+             if (u.status === 'pending') {
+                 statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-bold animate-pulse">Chờ duyệt</span>';
+                 actionBtn = `<button onclick="approveUser('${d.id}')" class="text-white bg-green-500 hover:bg-green-600 font-bold mr-2 text-xs px-3 py-1 rounded shadow">DUYỆT</button>`;
+             } else {
+                 statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold">Active</span>';
+             }
+
+             if (u.isBlocked) statusBadge = '<span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-bold">Đã khóa</span>';
+
+             // Các nút chức năng khác
              let roleBtn = '';
              if (u.role === 'student') roleBtn = `<button onclick="assignLeader('${d.id}')" class="text-xs bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200 mr-1">Thăng Leader</button>`;
              else if (u.role === 'leader') roleBtn = `<button onclick="demoteLeader('${d.id}')" class="text-xs bg-orange-100 text-orange-600 p-1 rounded hover:bg-orange-200 mr-1">Xuống Member</button>`;
-             let deleteBtn = !isSelf ? `<button onclick="deleteUserSystem('${d.id}', '${u.displayName}')" class="text-xs bg-red-600 text-white p-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Xóa TK</button>` : '';
+             
+             let deleteBtn = !isSelf ? `<button onclick="deleteUserSystem('${d.id}', '${u.displayName}')" class="text-xs bg-red-600 text-white p-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i></button>` : '';
 
              tbody.innerHTML += `
                 <tr class="border-b">
@@ -477,9 +551,10 @@ window.loadAdminStats = () => {
                         <div class="text-xs text-gray-500">${u.email}</div>
                     </td>
                     <td class="p-3 text-sm"><span class="px-2 py-1 rounded bg-gray-100">${u.role}</span></td>
-                    <td class="p-3 text-sm">${u.isBlocked?'<span class="text-red-500">Khóa</span>':'<span class="text-green-500">Active</span>'}</td>
+                    <td class="p-3 text-sm">${statusBadge}</td>
                     <td class="p-3 text-right">
                         ${!isSelf ? `
+                            ${actionBtn}
                             <button onclick="toggleBlockUser('${d.id}', ${u.isBlocked})" class="text-xs bg-gray-200 p-1 rounded mr-1">${u.isBlocked?'Mở':'Khóa'}</button>
                             ${roleBtn} ${deleteBtn}
                         ` : '<span class="text-xs text-gray-400">Bạn</span>'}
@@ -487,6 +562,17 @@ window.loadAdminStats = () => {
                 </tr>`;
          });
      });
+};
+
+// 5. Hàm duyệt user cho Admin
+window.approveUser = async (uid) => {
+    if(!confirm("Xác nhận đã nhận tiền và duyệt user này?")) return;
+    try {
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'info'), { status: 'active' });
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { status: 'active' });
+        toast("Đã duyệt thành công!", "success");
+        loadAdminStats();
+    } catch(e) { toast("Lỗi duyệt: " + e.message, "error"); }
 };
 
 window.assignLeader = async (uid) => {
@@ -1511,4 +1597,208 @@ window.handleGameOver = async (score) => {
         console.error("Lỗi lưu điểm:", e);
     }
 };
+/* =========================================
+   FIXED MUSIC PLAYER (FINAL VERSION)
+   ========================================= */
 
+(function() {
+    // 1. Singleton Audio: Đảm bảo chỉ có 1 audio tồn tại trên toàn bộ trang web
+    // Nếu chưa có thì tạo mới, nếu có rồi thì dùng lại cái cũ
+    if (!window.globalAudio) {
+        window.globalAudio = new Audio();
+    }
+    const audio = window.globalAudio; 
+
+    // 2. Kiểm tra Widget trong HTML
+    const widget = document.getElementById('music-widget');
+    if (!widget) return; // Không có HTML thì không chạy
+
+    // 3. Dữ liệu Playlist
+    const myPlaylist = [
+        {
+            title: "Phép màu",
+            artist: "Mounter_x_MAYDAYs,_Minh_Tốc",
+            src: "https://image2url.com/audio/1766419496648-c692c2a6-b66a-4b8a-9cc9-da5f6fb4cf06.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+         {
+            title: "Nỗi đau giữa hòa bình",
+            artist: "Hòa minzy , Nguyễn Văn Chung",
+            src: "https://image2url.com/audio/1766419395887-dd7448f1-6d67-4545-9e83-9921b63fd78e.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+         {
+            title: "Còn Gì Đẹp Hơn",
+            artist: "Nguyễn Hùng",
+            src: "https://image2url.com/audio/1766419293449-40091011-7d16-4b35-8920-71ee92588199.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+        {
+            title: "Beat 6",
+            artist: "HTP Music Team",
+            src: "https://image2url.com/audio/1766418768336-05533a97-5e1d-4028-98b2-fcc4899639ed.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },{
+            title: "Beat 5",
+            artist: "HTP Music Team",
+            src: "https://image2url.com/audio/1766418634806-49476398-1a05-46ce-b7b6-3fa40dc02a26.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },{
+            title: "Beat 4",
+            artist: "HTP Music Team",
+            src: "https://image2url.com/audio/1766418466817-48b70867-1b4e-48da-9b02-27b678c85682.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },{
+            title: "Beat 3",
+            artist: "HTP Music Team",
+            src: "https://image2url.com/audio/1766418529588-4e7c2259-26cb-4b1e-a002-ae8dc128c0c2.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },{
+            title: "Beat 2",
+            artist: "HTP Music Team",
+            src: "https://image2url.com/audio/1766418317323-317ff2e5-62e8-4ba9-83fc-0ee7a3c5b3ff.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },{
+            title: "Lofi Study Chill",
+            artist: "Chill Cow",
+            src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+        {
+            title: "Beat 1",
+            artist: "HTP Music Team",
+            src: "https://image2url.com/audio/1766418171290-22222a2e-d6aa-4dc1-bc98-86bad2f08119.mp3",
+            cover: "https://placehold.co/100x100/ec4899/white?text=Piano"
+        }
+    ];
+
+    // Khai báo biến trạng thái
+    let songIndex = 0;
+    // Quan trọng: Kiểm tra xem audio có thực sự đang chạy không chứ không chỉ dựa vào biến cờ
+    let isPlaying = !audio.paused; 
+
+    // Lấy Element
+    const playBtn = document.getElementById('play-btn');
+    const cover = document.getElementById('song-cover');
+    const indicator = document.getElementById('music-indicator');
+    const title = document.getElementById('song-title');
+    const artist = document.getElementById('song-artist');
+    const progress = document.getElementById('progress-bar');
+
+    // --- CÁC HÀM ĐIỀU KHIỂN (GẮN VÀO WINDOW) ---
+
+    // 1. Hàm Bật/Tắt Widget
+    window.toggleMusicPlayer = function() {
+        widget.classList.toggle('translate-y-[150%]');
+        widget.classList.toggle('opacity-0');
+    };
+
+    // 2. Hàm Play/Pause (Đã sửa logic chặt chẽ hơn)
+    window.playPauseMusic = function() {
+        if (!audio.paused) {
+            // Đang hát -> Dừng lại
+            audio.pause();
+            isPlaying = false;
+            updatePlayButtonUI(false);
+        } else {
+            // Đang dừng -> Hát
+            audio.play().catch(e => console.log("Chưa tương tác với web nên chưa tự play được"));
+            isPlaying = true;
+            updatePlayButtonUI(true);
+        }
+    };
+
+    // 3. Cập nhật giao diện nút bấm
+    function updatePlayButtonUI(isPlayingState) {
+        if(isPlayingState) {
+            if(playBtn) playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            if(cover) cover.style.animationPlayState = 'running';
+            if(indicator) indicator.classList.remove('hidden');
+        } else {
+            if(playBtn) playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
+            if(cover) cover.style.animationPlayState = 'paused';
+            if(indicator) indicator.classList.add('hidden');
+        }
+    }
+
+    // 4. Next / Prev
+    window.nextSong = function() {
+        songIndex = (songIndex + 1) % myPlaylist.length;
+        loadSong(songIndex);
+        if (isPlaying) audio.play();
+    };
+
+    window.prevSong = function() {
+        songIndex = (songIndex - 1 + myPlaylist.length) % myPlaylist.length;
+        loadSong(songIndex);
+        if (isPlaying) audio.play();
+    };
+
+    // 5. Chọn bài từ list
+    window.playSpecific = function(idx) {
+        songIndex = idx;
+        loadSong(songIndex);
+        audio.play();
+        isPlaying = true;
+        updatePlayButtonUI(true);
+    };
+
+    // --- HÀM HỖ TRỢ ---
+    function loadSong(index) {
+        const song = myPlaylist[index];
+        if(title) title.innerText = song.title;
+        if(artist) artist.innerText = song.artist;
+        if(cover) cover.src = song.cover;
+        
+        // Chỉ đổi src nếu bài hát khác bài đang load (tránh load lại khi đang pause)
+        if (audio.src !== song.src) {
+            audio.src = song.src;
+        }
+    }
+
+    function formatTime(seconds) {
+        const min = Math.floor(seconds / 60);
+        const sec = Math.floor(seconds % 60);
+        return `${min}:${sec < 10 ? '0' + sec : sec}`;
+    }
+
+    // --- EVENT LISTENERS ---
+    
+    // Khi nhạc chạy, cập nhật thanh tiến trình
+    audio.ontimeupdate = (e) => {
+        if(audio.duration && progress) {
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progress.value = percent;
+            document.getElementById('curr-time').innerText = formatTime(audio.currentTime);
+            document.getElementById('dur-time').innerText = formatTime(audio.duration);
+        }
+    };
+
+    // Tự động chuyển bài khi hết
+    audio.onended = window.nextSong;
+
+    // Tua nhạc
+    if(progress) {
+        progress.oninput = () => {
+            const duration = audio.duration;
+            audio.currentTime = (progress.value / 100) * duration;
+        };
+    }
+
+    // Render List
+    const ul = document.getElementById('playlist-ul');
+    if(ul) {
+        ul.innerHTML = myPlaylist.map((song, idx) => `
+            <li onclick="playSpecific(${idx})" class="text-xs p-2 hover:bg-indigo-50 rounded cursor-pointer flex justify-between items-center text-gray-600 hover:text-indigo-600 transition">
+                <span>${idx + 1}. ${song.title}</span>
+                <i class="fas fa-play-circle opacity-0 hover:opacity-100"></i>
+            </li>
+        `).join('');
+    }
+
+    // --- KHỞI CHẠY LẦN ĐẦU ---
+    loadSong(songIndex);
+    // Đồng bộ UI với trạng thái thực tế của audio (đề phòng audio đang chạy từ trang trước)
+    updatePlayButtonUI(!audio.paused);
+
+})();
