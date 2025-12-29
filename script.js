@@ -1061,7 +1061,7 @@ const mockSubjectData = {
         exams: []
     },
     'Lý': { videos: [], docs: [], exams: [
-    { t: 'Đề thi CK1 ', url: 'https://www.taodethi.xyz/2025/12/de-on-ck1-lop-12.html'' }
+    { t: 'Đề thi CK1 ', url: 'https://www.taodethi.xyz/2025/12/de-on-ck1-lop-12.html' }
     ] },
     'Hóa': { videos: [
      { t: 'Ester – lipit', id: '8nfiPbueiPI' },
@@ -1804,4 +1804,5 @@ window.handleGameOver = async (score) => {
     updatePlayButtonUI(!audio.paused);
 
 })();
+
 
