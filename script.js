@@ -2,20 +2,21 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, getDocs, arrayUnion, arrayRemove, limit, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// 1. CONFIG
+// 1. CẤU HÌNH (PROJECT MỚI)
 const firebaseConfig = {
-    apiKey: "AIzaSyDB2qnJUEKL0KSwEibU0t-mpBKyzuUt7SE",
-    authDomain: "onthi-2026.firebaseapp.com",
-    projectId: "onthi-2026",
-    storageBucket: "onthi-2026.firebasestorage.app",
-    messagingSenderId: "720604280248",
-    appId: "1:720604280248:web:1e6a843eb0a0de42158b4d"
+  apiKey: "AIzaSyB-vDgQYw-yT9B1hQQy0VyEc-BrZOVh3Sw",
+  authDomain: "onthi2026-2d0eb.firebaseapp.com",
+  projectId: "onthi2026-2d0eb",
+  storageBucket: "onthi2026-2d0eb.firebasestorage.app",
+  messagingSenderId: "1016775391844",
+  appId: "1:1016775391844:web:40a7931e1c895e62a3bd71",
+  measurementId: "G-ZY0L1XMMNE"
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const APP_ID = 'onthi-2026';
-
+const APP_ID = 'onthi2026-2d0eb';
 // CONSTANTS
 const ADMIN_EMAILS = ['taobacvietteam@gmail.com', 'admin@gmail.com']; // Thêm admin@gmail.com vào danh sách admin
 
@@ -1804,5 +1805,6 @@ window.handleGameOver = async (score) => {
     updatePlayButtonUI(!audio.paused);
 
 })();
+
 
 
