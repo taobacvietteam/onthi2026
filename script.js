@@ -27,7 +27,7 @@ let currentChatType = 'global';
 let currentChatTarget = null;
 let player = null, videoTimer = null;
 let gameInterval = null;
-let meetingApi = null;
+
 let currentAdminTab = 'users';
 let currentViewingGroupId = null;
 
@@ -296,40 +296,93 @@ window.joinGroup = async (gid, truePass) => {
     } else toast('Sai mật khẩu!', 'error');
 };
 
-// --- CHAT SYSTEM ---
+// ==========================================
+// --- CHAT SYSTEM (FULL RESPONSIVE & VIDEO) ---
+// ==========================================
+
+// 1. Chuyển Tab (Chung / Riêng / Nhóm)
 window.switchChatTab = (type) => {
     currentChatType = type;
+    
+    // Reset giao diện chat
     document.getElementById('chat-messages').innerHTML = '';
     document.getElementById('chat-list').innerHTML = '';
+    
+    // Cập nhật Header Title
     const headerTitle = document.getElementById('chat-title-display');
-    headerTitle.innerHTML = "";
+    
+    // Nút Video Call HTML (Chỉ hiện khi cần)
+    const videoBtnHtml = `
+        <button onclick="startVideoCall()" class="text-gray-400 hover:text-indigo-600 p-2 transition rounded-full hover:bg-indigo-50 ml-2" title="Gọi Video">
+            <i class="fas fa-video text-lg"></i>
+        </button>
+    `;
 
     if(type === 'global') {
-        headerTitle.innerText = "Chat Chung";
+        // Chat chung: Có thể ẩn nút gọi video nếu muốn tránh spam
+        headerTitle.innerHTML = `<span class="truncate font-bold text-gray-700">Chat Chung</span> ${videoBtnHtml}`;
         currentChatTarget = 'global';
+        
+        // Mobile: Nếu bấm Chat chung thì mở luôn màn hình chat
+        if(window.innerWidth < 768) window.openChatMobile();
+        
         listenChat('global');
     } else if (type === 'private') {
-        headerTitle.innerText = "Chọn người nhắn";
+        headerTitle.innerText = "Chọn người nhắn...";
+        // Mobile: Ở chế độ private thì phải hiện list user trước (không mở chat ngay)
+        if(window.innerWidth < 768) window.backToUserList(); 
+        
         loadUserListForChat();
     } else if (type === 'group') {
-        headerTitle.innerText = "Chọn nhóm";
+        headerTitle.innerText = "Chọn nhóm...";
+        if(window.innerWidth < 768) window.backToUserList();
+        
         loadMyGroupsForChat();
     }
 };
 
+// 2. Load Danh sách User (Tab Riêng)
 function loadUserListForChat() {
     getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory')).then(snap => {
         const list = document.getElementById('chat-list');
-        list.innerHTML = '';
+        list.innerHTML = ''; // Clear list cũ
+        
         snap.forEach(d => {
-            if(d.id === currentUser.uid) return;
+            if(d.id === currentUser.uid) return; // Bỏ qua chính mình
             const u = d.data();
+            
             const div = document.createElement('div');
-            div.className = "p-2 hover:bg-white rounded cursor-pointer flex items-center transition";
-            div.innerHTML = `<img src="${u.avatar}" class="w-8 h-8 rounded-full mr-2"><span class="text-sm font-bold truncate">${u.displayName}</span>`;
+            // Style item user trong list
+            div.className = "p-3 bg-white rounded-lg border hover:bg-indigo-50 cursor-pointer flex items-center gap-3 mb-2 transition shadow-sm";
+            div.innerHTML = `
+                <div class="relative shrink-0">
+                    <img src="${u.avatar}" class="w-10 h-10 rounded-full object-cover border border-gray-200">
+                    <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                </div>
+                <div class="overflow-hidden min-w-0">
+                    <p class="font-bold text-gray-700 text-sm truncate">${u.displayName}</p>
+                    <p class="text-xs text-gray-400 truncate">Bấm để nhắn tin</p>
+                </div>
+            `;
+            
+            // Sự kiện Click
             div.onclick = () => {
                 currentChatTarget = d.id;
-                document.getElementById('chat-title-display').innerText = `${u.displayName}`;
+                
+                // Cập nhật Header với nút Video
+                const header = document.getElementById('chat-title-display');
+                header.innerHTML = `
+                    <div class="flex items-center justify-between w-full">
+                         <span class="truncate font-bold text-gray-700">${u.displayName}</span>
+                         <button onclick="startVideoCall()" class="text-gray-400 hover:text-indigo-600 p-2 transition rounded-full hover:bg-indigo-50" title="Gọi Video">
+                            <i class="fas fa-video text-lg"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // Quan trọng: Gọi hàm mở chat mobile
+                window.openChatMobile();
+                
                 listenChat('private_sorted', getChatId(currentUser.uid, d.id));
             };
             list.appendChild(div);
@@ -337,129 +390,202 @@ function loadUserListForChat() {
     });
 }
 
+// 3. Load Danh sách Nhóm (Tab Nhóm)
 function loadMyGroupsForChat() {
     getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups')).then(snap => {
          const list = document.getElementById('chat-list');
          list.innerHTML = '';
+         
          snap.forEach(d => {
              const g = d.data();
              if(g.members.includes(currentUser.uid)) {
                  const div = document.createElement('div');
-                 div.className = "p-2 hover:bg-white rounded cursor-pointer flex items-center transition";
-                 div.innerHTML = `<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2 text-indigo-600"><i class="fas fa-users"></i></div><span class="text-sm font-bold truncate">${g.name}</span>`;
-                 div.onclick = () => openGroupChat(d.id, g.name);
+                 div.className = "p-3 bg-white rounded-lg border hover:bg-indigo-50 cursor-pointer flex items-center gap-3 mb-2 transition shadow-sm";
+                 div.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border border-indigo-200 shrink-0">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="overflow-hidden min-w-0">
+                        <p class="font-bold text-gray-700 text-sm truncate">${g.name}</p>
+                        <p class="text-xs text-gray-400 truncate">Nhóm học tập</p>
+                    </div>
+                 `;
+                 
+                 div.onclick = () => {
+                     // Gọi hàm mở chat group & mobile UI
+                     openGroupChat(d.id, g.name);
+                     window.openChatMobile();
+                 };
                  list.appendChild(div);
              }
          });
     });
 }
+
+// Helper: Tạo ID hội thoại riêng tư
 function getChatId(uid1, uid2) { return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`; }
 
+// 4. Lắng nghe tin nhắn Realtime
 let chatUnsub;
 function listenChat(collectionName, docId) {
-    if(chatUnsub) chatUnsub();
-    let collectionRef;
+    if(chatUnsub) chatUnsub(); // Hủy listener cũ
     
+    let collectionRef;
     if(collectionName === 'global') collectionRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_global');
     else if (collectionName === 'private_sorted') collectionRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'chats', docId, 'messages');
     else if (collectionName === 'group') collectionRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups', docId, 'messages');
 
     if(collectionRef) {
+        // Query: Sắp xếp theo thời gian, lấy 50 tin mới nhất
         const q = query(collectionRef, orderBy('ts', 'asc'), limit(50));
+        
         chatUnsub = onSnapshot(q, snap => {
             const div = document.getElementById('chat-messages');
-            div.innerHTML = '';
+            div.innerHTML = ''; 
+            
             snap.forEach(d => renderMsg(d.data(), d.id, div, collectionName, docId));
+            
+            // Auto scroll xuống đáy
             div.scrollTop = div.scrollHeight;
         });
     }
 }
 
+// 5. Mở chat nhóm (từ nút "Chat ngay" ở màn hình Nhóm hoặc từ Sidebar Chat)
 window.openGroupChat = (gid, gname) => {
-    window.handleNavReal('chat');
+    // Nếu đang ở màn hình khác thì chuyển về màn hình Chat
+    if(window.nav) window.nav('chat'); 
+    else window.handleNavReal('chat');
+
     currentChatType = 'group';
     currentChatTarget = gid;
+    
     const header = document.getElementById('chat-title-display');
     header.innerHTML = `
-        <div class="flex justify-between items-center w-full">
-            <span>${gname}</span>
-            <button onclick="openGroupDetail('${gid}')" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200">
-                <i class="fas fa-info-circle"></i> Chi tiết
-            </button>
+        <div class="flex justify-between items-center w-full gap-2">
+            <span class="truncate pr-2 font-bold text-indigo-900">${gname}</span>
+            <div class="flex items-center shrink-0">
+                <button onclick="startVideoCall()" class="text-gray-400 hover:text-indigo-600 p-2 mr-1 rounded-full hover:bg-indigo-50 transition" title="Gọi Video Nhóm">
+                    <i class="fas fa-video text-lg"></i>
+                </button>
+                <button onclick="openGroupDetail('${gid}')" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 font-bold whitespace-nowrap">
+                    <i class="fas fa-info-circle"></i> <span class="hidden sm:inline">Chi tiết</span>
+                </button>
+            </div>
         </div>
     `;
+    
     listenChat('group', gid);
+    
+    // Nếu là mobile thì mở view chat luôn
+    if(window.innerWidth < 768) window.openChatMobile();
 };
 
+// 6. Gửi tin nhắn
 window.sendChat = async () => {
     const input = document.getElementById('chat-input');
     const txt = input.value.trim();
-    const img = document.getElementById('img-prev-src').src;
+    const imgElem = document.getElementById('img-prev-src');
+    const img = imgElem ? imgElem.src : ''; 
+    
     const hasImg = !document.getElementById('image-preview').classList.contains('hidden');
+    
     if(!txt && !hasImg) return;
     
+    // Dữ liệu tin nhắn
     const msgData = { 
         text: txt, 
         img: hasImg ? img : null, 
         uid: currentUser.uid, 
-        name: userProfile.displayName, 
-        avatar: userProfile.avatar, 
+        name: userProfile.displayName || "User", 
+        avatar: userProfile.avatar || "https://ui-avatars.com/api/?name=User", 
         ts: serverTimestamp(),
         reactions: {}
     };
-    input.value = ''; clearImage();
+    
+    // Reset input ngay lập tức
+    input.value = ''; 
+    clearImage();
 
     try {
-        if(currentChatType === 'global') await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_global'), msgData);
-        else if (currentChatType === 'private') await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chats', getChatId(currentUser.uid, currentChatTarget), 'messages'), msgData);
-        else if (currentChatType === 'group') await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups', currentChatTarget, 'messages'), msgData);
-    } catch(e) { console.error(e); }
+        if(currentChatType === 'global') 
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_global'), msgData);
+        else if (currentChatType === 'private') 
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chats', getChatId(currentUser.uid, currentChatTarget), 'messages'), msgData);
+        else if (currentChatType === 'group') 
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'groups', currentChatTarget, 'messages'), msgData);
+    } catch(e) { 
+        console.error("Lỗi gửi tin nhắn:", e); 
+    }
 };
 
+// 7. Render Tin nhắn (Bao gồm hiển thị cuộc gọi Video)
 function renderMsg(msg, msgId, container, colName, docId) {
     const isMe = msg.uid === currentUser.uid;
     let reactionHtml = '';
 
-    // Xử lý hiển thị các reaction đã thả
+    // Xử lý Reaction
     if (msg.reactions) {
         const counts = {};
         Object.values(msg.reactions).forEach(r => counts[r] = (counts[r] || 0) + 1);
         const reactionIcons = Object.keys(counts).map(k => 
-            `<span class="ml-1 bg-white/90 px-1.5 py-0.5 rounded-full shadow-sm border text-xs">
-                ${k} <span class="text-gray-500 font-semibold">${counts[k]}</span>
+            `<span class="ml-1 bg-white/90 px-1.5 py-0.5 rounded-full shadow-sm border text-[10px] text-gray-600">
+                ${k} <span class="font-bold">${counts[k]}</span>
             </span>`
         ).join('');
         
         if (reactionIcons) {
-            reactionHtml = `<div class="reaction-container absolute -bottom-3 ${isMe ? 'right-0' : 'left-0'} flex gap-1 z-10 whitespace-nowrap">${reactionIcons}</div>`;
+            reactionHtml = `<div class="reaction-container absolute -bottom-2 ${isMe ? 'right-0' : 'left-0'} flex gap-1 z-10 whitespace-nowrap">${reactionIcons}</div>`;
         }
     }
 
+    // Nút Reaction position
     const btnPositionClass = isMe ? '-left-8' : '-right-8';
     const pickerPositionClass = isMe ? 'right-0' : 'left-0';
 
+    // Nội dung Text hoặc Thẻ Gọi Video
+    let msgContent = '';
+    if (msg.text && msg.text.startsWith('###CALL:')) {
+        const roomId = msg.text.split(':')[1];
+        msgContent = `
+            <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 my-1 flex flex-col items-center gap-2 min-w-[180px]">
+                <div class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center animate-pulse">
+                    <i class="fas fa-video text-white text-lg"></i>
+                </div>
+                <p class="font-bold text-indigo-800 text-sm">Cuộc gọi video</p>
+                <button onclick="joinMeeting('${roomId}')" class="bg-indigo-600 text-white text-xs font-bold py-2 px-4 rounded-full shadow hover:bg-indigo-700 transition w-full">
+                    <i class="fas fa-phone-alt mr-1"></i> Tham gia ngay
+                </button>
+            </div>
+        `;
+    } else {
+        msgContent = msg.text ? `<span class="leading-relaxed block whitespace-pre-wrap">${msg.text}</span>` : '';
+    }
+
     const html = `
-        <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative mb-6 px-2">
-            ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end shadow-sm">` : ''}
+        <div class="flex ${isMe ? 'justify-end' : 'justify-start'} group chat-bubble relative mb-4 px-1 w-full animate-fade-in">
+            ${!isMe ? `<img src="${msg.avatar}" class="w-8 h-8 rounded-full mr-2 self-end shadow-sm mb-1 object-cover flex-shrink-0">` : ''}
             
-            <div class="max-w-[80%] md:max-w-[70%] relative group">
-                ${!isMe ? `<p class="text-xs text-gray-400 ml-1 mb-1">${msg.name}</p>` : ''}
+            <div class="max-w-[75%] md:max-w-[70%] relative group flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                ${!isMe ? `<p class="text-[10px] text-gray-400 ml-1 mb-0.5 truncate max-w-full">${msg.name}</p>` : ''}
                 
-                <div class="p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative">
-                    ${msg.img ? `<img src="${msg.img}" class="rounded-lg mb-2 max-w-full block">` : ''}
-                    ${msg.text ? `<p class="break-words text-sm md:text-base leading-snug">${msg.text}</p>` : ''}
+                <div class="p-2 md:p-3 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white border text-gray-800 shadow-sm rounded-bl-none'} relative text-sm md:text-base break-words min-w-[2rem]">
+                    
+                    ${msg.img ? `<img src="${msg.img}" class="rounded-lg mb-2 w-full object-cover cursor-pointer" onclick="window.open(this.src, '_blank')">` : ''}
+                    
+                    ${msgContent}
                     
                     <button class="reaction-trigger absolute top-1/2 transform -translate-y-1/2 ${btnPositionClass} 
                                    text-gray-400 hover:text-yellow-500 bg-white rounded-full w-6 h-6 flex items-center justify-center 
-                                   shadow-sm border transition-all opacity-0 group-hover:opacity-100 z-20" 
+                                   shadow-sm border transition-all opacity-0 group-hover:opacity-100 z-20 md:opacity-0 focus:opacity-100" 
                             onclick="toggleReactionPicker('${msgId}')">
                         <i class="far fa-smile text-xs"></i>
                     </button>
 
                     <div id="picker-${msgId}" class="reaction-picker hidden absolute bottom-full mb-2 ${pickerPositionClass} 
-                                               bg-white shadow-xl border rounded-full p-1.5 flex gap-1 z-50 min-w-max">
+                                               bg-white shadow-xl border rounded-full p-1 flex gap-1 z-50 min-w-max">
                         ${['❤️','😂','😮','😢','👍'].map(emoji => 
-                            `<span class="reaction-btn cursor-pointer hover:bg-gray-100 p-1.5 rounded-full transition-transform hover:scale-125 text-lg select-none" 
+                            `<span class="reaction-btn cursor-pointer hover:bg-gray-100 p-1.5 rounded-full transition-transform hover:scale-125 text-base select-none" 
                                    onclick="addReaction('${colName}', '${docId}', '${msgId}', '${emoji}')">${emoji}</span>`
                         ).join('')}
                     </div>
@@ -471,10 +597,47 @@ function renderMsg(msg, msgId, container, colName, docId) {
     container.insertAdjacentHTML('beforeend', html);
 }
 
+// 8. Các hàm điều khiển UI Mobile
+window.openChatMobile = function() {
+    if (window.innerWidth < 768) {
+        const sidebar = document.getElementById('chat-sidebar');
+        const mainArea = document.getElementById('chat-main-area');
+        
+        if (sidebar) sidebar.classList.add('hidden');
+        if (mainArea) {
+            mainArea.classList.remove('hidden');
+            mainArea.classList.add('flex');
+        }
+    }
+};
+
+window.backToUserList = function() {
+    document.getElementById('chat-title-display').innerText = currentChatType === 'group' ? "Chọn nhóm..." : "Chọn người nhắn...";
+    
+    const sidebar = document.getElementById('chat-sidebar');
+    const mainArea = document.getElementById('chat-main-area');
+
+    if (sidebar) sidebar.classList.remove('hidden');
+    if (mainArea) {
+        mainArea.classList.add('hidden');
+        mainArea.classList.remove('flex');
+    }
+};
+
+// 9. Xử lý Reaction
 window.toggleReactionPicker = (msgId) => {
-    document.querySelectorAll('.reaction-picker').forEach(el => { if (el.id !== `picker-${msgId}`) el.classList.add('hidden'); });
+    document.querySelectorAll('.reaction-picker').forEach(el => { 
+        if (el.id !== `picker-${msgId}`) el.classList.add('hidden'); 
+    });
+    
     const p = document.getElementById(`picker-${msgId}`);
-    if(p) { p.classList.remove('hidden'); p.style.display = 'flex'; setTimeout(() => p.classList.add('hidden'), 3000); }
+    if(p) { 
+        p.classList.toggle('hidden'); 
+        p.style.display = p.classList.contains('hidden') ? 'none' : 'flex';
+        if(!p.classList.contains('hidden')) {
+             setTimeout(() => { if(p) p.classList.add('hidden'); }, 3000); 
+        }
+    }
 };
 
 window.addReaction = async (colName, docId, msgId, emoji) => {
@@ -487,11 +650,84 @@ window.addReaction = async (colName, docId, msgId, emoji) => {
         const updateField = {};
         updateField[`reactions.${currentUser.uid}`] = emoji;
         await updateDoc(msgRef, updateField);
-        document.getElementById(`picker-${msgId}`).classList.add('hidden');
+        const p = document.getElementById(`picker-${msgId}`);
+        if(p) p.classList.add('hidden');
+    }
+};
+// ==========================================
+// --- MEETING & VIDEO CALL SYSTEM (MERGED) ---
+// ==========================================
+
+let meetingApi = null; // Sử dụng chung biến này cho cả Chat và Group Meeting
+
+// 1. Logic Gọi Video từ Chat (Của hệ thống mới)
+window.startVideoCall = async () => {
+    if (!currentChatTarget) return alert("Vui lòng chọn người hoặc nhóm để gọi!");
+    
+    const confirmCall = confirm("Bạn muốn bắt đầu cuộc gọi video?");
+    if (!confirmCall) return;
+
+    // Tạo ID phòng: LT2026_CHATID_TIMESTAMP
+    const roomId = `LT2026_${currentChatTarget}_${Date.now()}`;
+    
+    // Gửi link mời vào chat
+    const callMsg = `###CALL:${roomId}`;
+    const input = document.getElementById('chat-input');
+    const originalVal = input.value;
+    input.value = callMsg;
+    
+    // Ẩn ảnh tạm thời nếu có
+    const wasImgHidden = document.getElementById('image-preview').classList.contains('hidden');
+    if(!wasImgHidden) document.getElementById('image-preview').classList.add('hidden');
+    
+    await window.sendChat(); 
+    
+    // Restore trạng thái input
+    input.value = originalVal;
+    if(!wasImgHidden) document.getElementById('image-preview').classList.remove('hidden');
+
+    // Tự động tham gia
+    window.joinMeeting(roomId);
+};
+
+// 2. Logic Tham gia Video từ Chat (Của hệ thống mới)
+window.joinMeeting = (roomId) => {
+    // Chuyển view
+    if(window.nav) window.nav('meeting'); else window.handleNavReal('meeting');
+    
+    const container = document.getElementById('meet-container');
+    container.innerHTML = ""; 
+
+    const domain = 'meet.jit.si';
+    const options = {
+        roomName: roomId,
+        width: '100%',
+        height: '100%',
+        parentNode: container,
+        userInfo: {
+            displayName: userProfile.displayName || "User",
+            email: currentUser.email
+        },
+        configOverwrite: { startWithAudioMuted: false, startWithVideoMuted: false },
+        interfaceConfigOverwrite: { 
+            SHOW_JITSI_WATERMARK: false,
+            MOBILE_APP_PROMO: false
+        }
+    };
+
+    try {
+        // Gán vào biến meetingApi chung
+        meetingApi = new JitsiMeetExternalAPI(domain, options);
+        meetingApi.addEventListener('videoConferenceLeft', () => {
+            window.endMeeting();
+        });
+    } catch (e) {
+        console.error("Lỗi Jitsi:", e);
+        window.endMeeting();
     }
 };
 
-// --- MEETING ---
+// 3. Logic Họp Nhóm (Code CỦA BẠN - GIỮ NGUYÊN)
 window.startGroupMeeting = (groupId) => {
     window.handleNavReal('meeting');
     const domain = 'meet.jit.si';
@@ -505,9 +741,37 @@ window.startGroupMeeting = (groupId) => {
     };
     document.querySelector('#meet-container').innerHTML = '';
     meetingApi = new JitsiMeetExternalAPI(domain, options);
+    
+    // Thêm sự kiện để khi cúp máy thì tự thoát
+    meetingApi.addEventListener('videoConferenceLeft', () => {
+        window.endMeeting();
+    });
 };
-window.endMeeting = () => { if(meetingApi) meetingApi.dispose(); window.handleNavReal('groups'); };
 
+// 4. Logic Kết thúc (Hợp nhất để xử lý cả 2 trường hợp)
+window.endMeeting = () => { 
+    if(meetingApi) {
+        meetingApi.dispose(); 
+        meetingApi = null;
+    }
+    
+    // Logic thông minh: 
+    // Nếu trước đó đang ở tab 'groups' (Họp nhóm) -> Về Groups
+    // Nếu trước đó đang ở tab 'chat' (Gọi video) -> Về Chat
+    // Mặc định ưu tiên về Chat nếu không xác định được
+    
+    // Kiểm tra xem user đang dùng tính năng nào dựa trên ID view hiện tại hoặc biến global
+    // Tuy nhiên, để đơn giản và an toàn, ta sẽ check:
+    
+    if (currentChatType === 'group' && !currentChatTarget.startsWith('group_')) {
+        // Nếu đang chat nhóm hoặc chat riêng -> Về Chat
+        if(window.nav) window.nav('chat'); else window.handleNavReal('chat');
+    } else {
+        // Mặc định quay về Chat (vì Chat phổ biến hơn), 
+        // hoặc bạn có thể đổi thành 'groups' nếu muốn ưu tiên nhóm như code cũ.
+        if(window.nav) window.nav('chat'); else window.handleNavReal('chat');
+    }
+};
 // ==========================================
 // --- ADMIN FEATURES (MODIFIED) ---
 // ==========================================
@@ -958,312 +1222,233 @@ window.loadActivityLogs = () => {
         });
     });
 };
-const mockSubjectData = {
-    'Toán': {
-        videos: [
-    { t: 'Ứng dụng đạo hàm toán thực tế P1', id: 'j4OK3ihNk_8' },
-    { t: 'Ứng dụng đạo hàm toán thực tế P2', id: 'Mm8VmEU_ZnM' },
-    { t: 'Ứng dụng đạo hàm toán thực tế P3', id: 'epoJkAC81LA' },
-    { t: 'Ứng dụng đạo hàm toán thực tế P4', id: '2ZXd09Csx4M' },
-    { t: 'Ứng dụng đạo hàm toán thực tế P5', id: 'KVRiMu1ckPQ' },
-    { t: 'Ứng dụng đạo hàm toán thực tế P6', id: 'KrrJcuVwEH0' },
-    { t: 'Ứng dụng vecto thực tế', id: 'IrIQQSiTX7c' },
-    { t: 'Ứng dụng tích phân thực tế P1', id: '1T9G9Ihinq8' },
-    { t: 'Ứng dụng tích phân thực tế P2', id: 'p1-5Ok7q2qk' },
-    { t: 'Ứng dụng tích phân thực tế P3', id: 'Lrp2ErdzOsY' },
-    { t: 'Hình không gian thực tế P1', id: 'OlVXRRajh28' }, // Đã xếp lại thứ tự P1
-    { t: 'Hình không gian thực tế P2', id: 'G9SRQVUrvxY' },
-    { t: 'Hình không gian thực tế P3', id: 'WYYvgmtzM00' },
+// ==========================================
+// --- 1. DATA LOADER & LINK PROCESSOR ---
+// ==========================================
 
-    // --- CHUYÊN ĐỀ 2: HÀM SỐ & KHẢO SÁT HÀM SỐ ---
-    { t: 'Tính đơn điệu của hàm số', id: 'zsxktJWNxVI' },
-    { t: 'Cực trị của hàm số', id: 'BbFj2KgZy6Q' },
-    { t: 'Giá trị lớn nhất – Giá trị nhỏ nhất', id: 'WsMJEaCQsoA' },
-    { t: 'Đường tiệm cận', id: 'o6g5ZpOczLc' },
-    { t: 'Khảo sát và vẽ đồ thị', id: '990wEB5yo2k' },
-    { t: 'Đơn điệu chứa tham số', id: 'g7InuFPi7Yo' },
-    { t: 'Cực trị chứa tham số', id: 'hSe9VbM95o4' },
-    { t: 'Tiệm cận chứa tham số', id: 'jqKJAmWblEc' },
+const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1FBbveBD1RpIAN3-Tc5gE2Iy0UHgEFMWNfF7qrU8gjlM/export?format=csv';
 
-    // --- CHUYÊN ĐỀ 3: NGUYÊN HÀM & TÍCH PHÂN (LÝ THUYẾT & PHƯƠNG PHÁP) ---
-    { t: 'Nguyên hàm cơ bản và công thức nguyên hàm', id: 'j615s9znk4U' },
-    { t: 'Nguyên hàm thường gặp', id: '7urfQ8s20oY' },
-    { t: 'Các phương pháp tìm nguyên hàm', id: 'DGD40tAWAjk' },
-    { t: 'Phương pháp biến đổi nguyên hàm P1', id: 'FvzxF99LvR0' },
-    { t: 'Phương pháp biến đổi nguyên hàm P2', id: 'bpTkSKB21FQ' },
-    { t: 'Phương pháp biến đổi nguyên hàm P3', id: 'pruobOzUaZE' },
-    { t: 'Nguyên hàm từng phần P1', id: '4_OACc2R8J8' },
-    { t: 'Nguyên hàm từng phần P2', id: 'S04zczlyd04' }, // Đã gom P2 về gần P1
-    { t: 'Nguyên hàm số vô tỉ', id: 'grvjJCPElw4' },
-    { t: 'Nguyên hàm vi phân', id: 'UqjcQFls4jE' },
-    { t: 'Nguyên hàm đa thức', id: 'lH2tCeCbWdI' },
-    { t: 'Nguyên hàm phân thức', id: '-GEbsBlsm-c' },
-    { t: 'Nguyên hàm số mũ', id: 'r4Rf8a5SE2U' },
-    { t: 'Phương trình vi phân (NH-TP)', id: 'PY5J_Y3fjjM' },
-    { t: 'Vận dụng cao nguyên hàm', id: 'orbwtuj_K1w' },
-    { t: 'Nguyên hàm full dạng', id: 'JXtw8WtdkEg' },
-    
-    // --- CHUYÊN ĐỀ 4: TÍCH PHÂN & ỨNG DỤNG ---
-    { t: 'Tích phân', id: 'cNDQkKzfsfw' },
-    { t: 'Ứng dụng tích phân P1', id: 'U70aHEdl8sY' },
-    { t: 'Ứng dụng tích phân P2', id: 'X9GI7LpnWwA' },
-    { t: 'Ứng dụng tích phân P3', id: 'wIfTTYnWsCg' },
-    { t: 'Ứng dụng tích phân P4', id: 'FfNGMIab_VA' },
-    { t: 'Ứng dụng hình học của tích phân', id: '4DE9Cz-e2mo' },
-    { t: 'Tích phân hàm ẩn', id: 'jRdqkSb88vE' },
-    { t: 'Tích phân hàm trị tuyệt đối', id: 'MIwukaeWuVs' },
-    { t: 'Diện tích đường cong đặc biệt (NH-TP)', id: 'xMxrawY-eBA' },
-    { t: 'Vận dụng cao tích phân', id: 'hMkcuuCfTIw' },
-    { t: 'Phương pháp chéo hóa (NH-TP)', id: 'SuerH0sP30w' },
-    { t: 'Giải toán maxmin (NH-TP)', id: 'tL4tkwqo3gc' },
-
-    // --- CHUYÊN ĐỀ 5: HÌNH HỌC OXYZ (VECTO & TỌA ĐỘ) ---
-    { t: 'Vecto trong không gian', id: 'phvpqxLNTUQ' },
-    { t: 'Tích vô hướng và góc giữa hai vecto', id: '7XaLq6-i3T8' },
-    { t: 'Hệ trục Oxyz', id: 'uzN97cFH1II' },
-    { t: 'Biểu thức tọa độ vecto trong không gian', id: 'G-9G2nDnwqA' },
-    { t: 'Tọa độ điểm, tọa độ vecto', id: '4vaNd0hCoIA' },
-    { t: 'Hình không gian, tích có hướng', id: 'FiK4WDKmqWE' },
-    { t: 'Cách bấm máy tích vô hướng, tích có hướng', id: 'ufmbgu4FQeE' },
-    { t: 'Vecto trong không gian full dạng', id: '1ktkwWXTsAs' },
-    { t: 'Ôn tọa độ vecto đề 1', id: 'uwcmSp-WsZY' },
-    { t: 'Ôn tọa độ vecto đề 2', id: 'CotrgHdPpvU' },
-    { t: 'Ôn tọa độ vecto đề 3', id: 'UL0LyL6YVMk' },
-
-    // --- CHUYÊN ĐỀ 6: MẶT PHẲNG, ĐƯỜNG THẲNG, MẶT CẦU ---
-    { t: 'Phương trình mặt phẳng', id: 'nnMrv6ZGgIE' },
-    { t: 'Pt mặt phẳng (Video 2)', id: 'PqZefHWRy5k' },
-    { t: 'Ôn tập pt mặt phẳng', id: 'w3zfFjKbqfs' },
-    { t: 'Phương trình đường thẳng P1', id: 'Zey1a4zUDVg' },
-    { t: 'Phương trình đường thẳng P2', id: 'zB9PoS_5UXs' },
-    { t: 'Phương trình mặt cầu', id: 'QTkfXTLyesk' },
-    { t: 'Kỹ thuật trải phẳng hình', id: '850ZqO8D_oA' },
-
-    // --- CHUYÊN ĐỀ 7: GÓC, KHOẢNG CÁCH & VẬN DỤNG CAO HÌNH HỌC ---
-    { t: 'Góc và khoảng cách P1', id: 'GbZxmfrD6j0' },
-    { t: 'Góc và khoảng cách P2', id: 'JeHJAhQxS04' },
-    { t: 'Phương pháp Gán trục tọa độ P1', id: 'i_-elkt7hE0' },
-    { t: 'Phương pháp Gán trục tọa độ P2', id: 'RgsUcoGnD-c' },
-    { t: 'Phương pháp Gán trục tọa độ P3', id: 'gS1_B__tE9Y' },
-    { t: 'Cực trị hình học Maxmin', id: '42HdEgCcAmU' },
-    { t: 'Tâm tỉ cự', id: 'ulZYfnAWkRo' },
-
-    // --- CHUYÊN ĐỀ 8: XÁC SUẤT & THỐNG KÊ ---
-    { t: 'Khoảng biến thiên và khoảng tứ phân vị', id: '1Z_YVju9-fk' },
-    { t: 'Mẫu số liệu ghép nhóm và các số xu thế đặc trưng', id: 'Z2ssSY4atIA' },
-    { t: 'Xác suất có điều kiện', id: '73Ft8fDSc3c' },
-    { t: 'Xác suất toàn phần', id: '2ZsjfFccH0s' },
-    { t: 'Công thức Bayes xác suất', id: 'ZN4LSnQLEyc' },
-    { t: 'Xác suất tổng hợp kiến thức ba khối', id: 'p-qb67DCrAE' }
-        ],
-        docs: [
-            { t: '50 đề thi minh họa', url: 'https://drive.google.com/file/d/1RyXb7KnEsX2uXgOQFq4Pn8WqxO0anGtA/preview' }
-        ],
-        exams: []
-    },
-    'Lý': { videos: [], docs: [], exams: [
-    { t: 'Đề thi CK1 ', url: 'https://www.taodethi.xyz/2025/12/de-on-ck1-lop-12.html' }
-    ] },
-    'Hóa': { videos: [
-     { t: 'Ester – lipit', id: '8nfiPbueiPI' },
-    { t: 'Xà phòng chất giặt rửa', id: 'C3jy7oHOmM8' },
-    { t: 'Glucose – Frutose', id: 'XLPKhuRhCBc' },
-    { t: 'Saccharose – maltose', id: 'XelD6r5_n_c' },
-    { t: 'Tinh bột – cellulose', id: 'FpEp0NWB4_M' },
-    { t: 'Amine', id: 'tTfgqXaw8uQ' },
-    { t: 'Amino acid – peptide', id: '7lW6UpVFJVE' },
-    { t: 'Protein – enzyme', id: 'rzs_xCSiE0A' },
-    { t: 'Polymer', id: 'EOyxtq2JKRU' },
-    { t: 'Chữa đề ester lipit', id: 'HpY0KGAB89A' },
-    { t: 'Vật liệu polymer', id: '0Y3sKdRggB8' },
-    { t: 'Vật liệu polymer tiếp', id: 'Wte765CFfoo' },
-    { t: 'Thế điện cực và nguồn điện hóa học', id: 'xlBNFQkz3_E' },
-    { t: 'Điện phân', id: 'HqjDIseuzFY' },
-    { t: 'Đặc điểm cấu tạo và liên kết kim loại', id: '3PKBx5Tl5J4' },
-    { t: 'Chữa đề cacbohydrate', id: 'hrHdtdVTy70' },
-    { t: 'Chữa đề hợp chất chứa nitrogen', id: 'aXnNOqx9HpU' },
-    { t: 'Phương tách kim loại', id: 'fOElNpwr2HM' },
-    { t: 'Hợp Kim - Sự ăn mòn kim loại', id: 'iolbKxBzQ3M' },
-    { t: 'Nguyên tố kim loại nhóm IA', id: 'NhlH3X92rpg' },
-    { t: 'Nguyên tố kim loại nhóm IIA', id: 'OLFo-k3T4XE' },
-    { t: 'Kim loại chuyển tiếp', id: 'ITvyekImifI' },
-    { t: 'Phức Chất', id: 'lMD8Pgy1VMo' },
-    { t: 'Chữa đề thi minh họa', id: 'xQaFkr6Tffc' }
-        ],
-    docs:  [
-  { t: '17. THPT Diên Hồng - TP Hồ Chí Minh (Lần 1)', url: 'https://drive.google.com/file/d/1-npZX-S6gHroRmB1PrrxUR63Zz7OsA-l/preview' },
-  { t: '31. Sở GDĐT Bắc Ninh (Đề tập huấn)', url: 'https://drive.google.com/file/d/128qwE7iP5a1gbqUwBt0OK5PlllaPR7wk/preview' },
-  { t: '29. THPT Hậu Lộc 1 - Thanh Hóa', url: 'https://drive.google.com/file/d/13FB6erjFXLV8bl5bTzjK1RyE49blNL0w/preview' },
-  { t: '43. THPT Tân Kỳ - Nghệ An (Lần 1)', url: 'https://drive.google.com/file/d/13XfDRLWxwBHa5NJA5Uw_5E4tuox4dcjV/preview' },
-  { t: '15. THPT Cù Huy Cận - Hà Tĩnh', url: 'https://drive.google.com/file/d/15Z5qNvElk6YslyQtTrgYaxpPP-LgcDsd/preview' },
-  { t: '1. THPT Lương Tài 2 - Bắc Ninh - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/16GlaMCJDav7UlNAHDxqwS7rc6CJ3CLfx/preview' },
-  { t: '11. Cụm Bắc Ninh (Lần 2)', url: 'https://drive.google.com/file/d/16fwadBFQiQLWWquPuYLeJD0iUZhAWCb4/preview' },
-  { t: '42. THPT Quang Trung - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/16luYZFk6aRHiHZclQTkOuReMkc9Spl8I/preview' },
-  { t: '6. THPT Chuyên Lê Hồng Phong - Nam Định - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/19ls2fxPMYvkQyynORn7GF-B3UInx59vL/preview' },
-  { t: '33. Sở GDĐT Thanh Hóa (Lần 1)', url: 'https://drive.google.com/file/d/19lwFHo394o6V6dQ5OntD8cID4uexUTWN/preview' },
-  { t: '37. THPT Kinh Môn - Hải Dương (Lần 1)', url: 'https://drive.google.com/file/d/1EEL22TvI2or-njv_u6u0Dp8jgD9JvYRK/preview' },
-  { t: '9. THPT Chuyên Lê Quý Đôn - Bà Rịa Vũng Tàu (Lần 1)', url: 'https://drive.google.com/file/d/1Et1cs32kNTexOwhWfhrk-G2UXz5CHNrx/preview' },
-  { t: '44. Chuyên Lê Quý Đôn - Đà Nẵng (Lần 1)', url: 'https://drive.google.com/file/d/1GBJ1TvrykKOom-XrrjJFL_PdJ_1NDkqQ/preview' },
-  { t: '40. Sở GDĐT Lạng Sơn (Lần 1)', url: 'https://drive.google.com/file/d/1H6k77r8mdC_Vy9VONHZ6RKWzw_gKuGOS/preview' },
-  { t: '21. Sở GDĐT Hà Tĩnh (Lần 1)', url: 'https://drive.google.com/file/d/1JOQ0mdKdE5RWz62siPgZU2ID7AbopXfa/preview' },
-  { t: '10. THPT Chuyên Phan Bội Châu - Nghệ An (Lần 1)', url: 'https://drive.google.com/file/d/1L-CAofmKymD0Tg0sEwjMQ7lmqQGg5hNn/preview' },
-  { t: '38. THPT Lê Chân - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/1Ma1psKt4uf5NB5ywr9zSShEEHVptrrBn/preview' },
-  { t: '27. THPT Hàm Rồng - Thanh Hóa (Lần 1)', url: 'https://drive.google.com/file/d/1N6QnGh5R6ghEaNlwsN5oV95z4JEMYsQV/preview' },
-  { t: '16. THPT Kiến An - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/1QyajGiimG5weTIMqxEUifQQ5zIIKx55B/preview' },
-  { t: '22. Chuyên Hạ Long - Quảng Ninh (Lần 1)', url: 'https://drive.google.com/file/d/1R8NUgP-6SORYCid6OvZTq_xfhjLOsP_U/preview' },
-  { t: '28. Cụm Liên trường THPT - Thanh Hóa', url: 'https://drive.google.com/file/d/1S2hheHO553jD-aj2dpKoxig3m509ErUx/preview' },
-  { t: '35. Sở GDĐT Vĩnh Phúc (Lần 1 - Đề 2)', url: 'https://drive.google.com/file/d/1SkQCoS5fCxc6DLcLubjryGrpvGSBFW1P/preview' },
-  { t: '23. THPT Tiên Du 1 - Bắc Ninh (KS đầu năm)', url: 'https://drive.google.com/file/d/1UVR1t4SWH2nIDLfvbrZs9j0BdVpZQAoP/preview' },
-  { t: '7. THPT Nguyễn Khuyến - TP HCM - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/1XCuuHlgyai6-6XAMFSYVBlDPF2VgX4i_/preview' },
-  { t: '25. Cụm chuyên môn số 3 - Đắk Lắk (Lần 1)', url: 'https://drive.google.com/file/d/1ZZMXWdGaQdNnAclecsMi-zI02jYGP3Az/preview' },
-  { t: '39. Sở GDĐT Phú Thọ (Lần 1)', url: 'https://drive.google.com/file/d/1_s8oZt85nSNUwZeU88ch3cN5yJbd9ccj/preview' },
-  { t: '13. Sở GD&ĐT TP HCM', url: 'https://drive.google.com/file/d/1_ymXXEGl0_niieFee-gd-7UvDutSrYz6/preview' },
-  { t: '36. Sở GDĐT Yên Bái (Đề thử nghiệm)', url: 'https://drive.google.com/file/d/1cjXQVLngyHFixsNcKBayXqHVoXBEmY7N/preview' },
-  { t: '46. Liên trường Nghệ An (Lần 1)', url: 'https://drive.google.com/file/d/1dQme-6neci_1N4n79hd9uT7kGcsW7fbB/preview' },
-  { t: '2. THPT Nguyễn Viết Xuân - Vĩnh Phúc (Form mới)', url: 'https://drive.google.com/file/d/1eS5gQ5d1xVBy_HuCbuFA5TnAoHwF6YiN/preview' },
-  { t: '19. Chuyên KHTN Hà Nội (Lần 1)', url: 'https://drive.google.com/file/d/1emeWAZsOZFmGmEsjlJYsgUAf5Baxzg9P/preview' },
-  { t: '4. THPT Chuyên Phan Bội Châu - Nghệ An (Form mới)', url: 'https://drive.google.com/file/d/1erdM9Ma4PrtPZOtInrfSeiRhp0o1S-IP/preview' },
-  { t: '12. Cụm Hải Dương (Lần 1)', url: 'https://drive.google.com/file/d/1fUZl9Np844sjLDnPVnj4gMQO8cSvEmwX/preview' },
-  { t: '20. Sở GDĐT Tuyên Quang (Lần 1)', url: 'https://drive.google.com/file/d/1gwxCcPIsIIWdg8pY_23mzsXIajr4SoZX/preview' },
-  { t: '14. THPT Lê Thánh Tông - TP Hồ Chí Minh', url: 'https://drive.google.com/file/d/1hhI0dh93CBjGy8EqqfhjOtvOw3dBsMXv/preview' },
-  { t: '5. THPT Tiên Du - Bắc Ninh - Lần 1 (Form mới)', url: 'https://drive.google.com/file/d/1hxMWkjybxjx-i80naC9kmTKjS_h_xwqt/preview' },
-  { t: '41. THPT Lương Ngọc Quyến - Thái Nguyên (Lần 1)', url: 'https://drive.google.com/file/d/1iEncBjtrf8Nwsgga38b2bmCRaRwIaQZ-/preview' },
-  { t: '45. Chuyên Trần Phú - Hải Phòng (Lần 1)', url: 'https://drive.google.com/file/d/1itSBUXNF0EhBg6dnOtLmmMZrP_QTm5Dn/preview' },
-  { t: '26. THPT Hà Trung - Thanh Hóa (Lần 1)', url: 'https://drive.google.com/file/d/1j-deYNYXy_abgOKkIKDM4jD5mcpoq9kD/preview' },
-  { t: '3. Sở GD&ĐT Ninh Bình (Form mới)', url: 'https://drive.google.com/file/d/1jjZPtsRq075y9edhyTgC-JswRaIR7iA2/preview' },
-  { t: '18. Sở GDĐT Vĩnh Phúc (Lần 1)', url: 'https://drive.google.com/file/d/1mM9mB3vTeQzRUps6Ez5f05YeF6VeNwbZ/preview' },
-  { t: '34. Sở GDĐT Quảng Bình (Lần 1)', url: 'https://drive.google.com/file/d/1mmrdv9uo77Fcq2KgA0daf8KDpRCmovig/preview' },
-  { t: '30. THPT Yên Lạc - Vĩnh Phúc (Lần 1)', url: 'https://drive.google.com/file/d/1swprSc3DPvDUgZJOryUHMETYurOqBRg_/preview' },
-  { t: '24. THPT Thuận Thành 1 - Bắc Ninh (KS đầu năm)', url: 'https://drive.google.com/file/d/1trpsm0CR8avXHCY4P8NlY24K979zwqUU/preview' },
-  { t: '8. THPT Chuyên Bắc Ninh (Lần 2)', url: 'https://drive.google.com/file/d/1u4qZXMCuEDSGzsybAmoU-VG8Nchj2brX/preview' },
-  { t: '47. Sở GDĐT Ninh Bình (Lần 2)', url: 'https://drive.google.com/file/d/1vNK8QB5l2aba_aU3Uhgkw38Lwm0nWBIW/preview' },
-  { t: '32. Sở GDĐT Bắc Giang (Lần 1)', url: 'https://drive.google.com/file/d/1wQKv-2TK5WGtgHB7aDfjfUgvdZyIyCEz/preview' }
-],
-    exams: [
-
-    ] },
-    'Văn': { videos: [], docs: [], exams: [] },
-    'Anh': { videos: [
-    // --- CHUYÊN ĐỀ 1: LÝ THUYẾT THÌ VÀ TỔNG QUAN ---
-    { t: 'Lý thuyết Thì P1', id: 'RhTBbwdubCE' },
-    { t: 'Lý thuyết Thì P2', id: '7zmvNiTciPE' },
-    { t: 'Lý thuyết Thì P3', id: 'FiFAds-igmo' },
-    { t: 'Tổng hợp 12 thì tiếng Anh', id: 'bCngYqYPTGo' },
-
-    // --- CHUYÊN ĐỀ 2: NGỮ PHÁP & TỪ VỰNG TRỌNG ĐIỂM ---
-    { t: 'Ngữ pháp trọng điểm P1', id: 'PtwEG_HTpZc' }, // (Bao gồm Từ vựng trọng điểm)
-    { t: 'Ngữ pháp trọng điểm P2', id: 'DIGnztUiS14' },
-    { t: 'Cụm động từ (Phrasal Verbs)', id: '3pl8SDVMrOI' },
-    { t: 'Từ loại (Word Forms)', id: 'U9dJhVPc22E' },
-    { t: 'Dạng bài Sắp xếp lá thư/câu P1', id: 'ccF4h-a9Ax0' },
-    { t: 'Dạng bài Sắp xếp lá thư/câu P2', id: '6F7OSNcC_z0' },
-    { t: 'Dạng bài Điền thông báo quảng cáo', id: 'i5g1256BPbE' },
-
-    // --- CHUYÊN ĐỀ 3: KHÓA HỌC LẤY GỐC CẤP TỐC ---
-    { t: 'Lấy gốc cấp tốc P1', id: 'Jlo1LZH-JZM' },
-    { t: 'Lấy gốc cấp tốc P2', id: 'xFba8DGAZyU' },
-    { t: 'Lấy gốc cấp tốc P3', id: 'WvuHUJKJ-sE' },
-    { t: 'Lấy gốc cấp tốc P4', id: 'GbquI1EYiu4' },
-    { t: 'Lấy gốc cấp tốc P5', id: '_VgDH1GWO2w' },
-    { t: 'Lấy gốc cấp tốc P6', id: 'QW44ppTRTw8' },
-    { t: 'Lấy gốc cấp tốc P7', id: 'O5D401AgJaw' },
-    { t: 'Lấy gốc cấp tốc P8', id: 'X1JO1Yrg6YA' },
-
-    // --- CHUYÊN ĐỀ 4: LUYỆN ĐỀ THI ---
-    { t: 'Luyện đề thi số 1', id: 'fX8-yvGz7fc' },
-    { t: 'Luyện đề thi số 2', id: 'hSgN6jsl48w' },
-    { t: 'Luyện đề thi số 3', id: '4Cjc67pk_kA' },
-    { t: 'Luyện đề thi số 4', id: 'n7zxmgpgZAU' },
-    { t: 'Luyện đề thi số 5', id: '1TjNhxA7QL4' },
-    { t: 'Luyện đề thi số 6', id: 'ICvrDOrNxzA' },
-    { t: 'Luyện đề thi số 7', id: 'Nvy7mIGsCSE' },
-    { t: 'Luyện đề thi số 8', id: 'u6FTyVsJNZA' },
-    { t: 'Luyện đề thi số 9', id: 'eBhzB5hfC0w' },
-    { t: 'Luyện đề thi số 10', id: 'DTjDjX_9zcw' }
-],
-        docs:[
-  { t: '26. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 904)', url: 'https://drive.google.com/file/d/10BqzpE6H49Ba-aYl9OLJVcCDnwb9CJrX/preview' },
-  { t: '24. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 902)', url: 'https://drive.google.com/file/d/10Qcf0Nr4V14Zz9EpUOSeHelmtqKDaHGa/preview' },
-  { t: '16. THPT Mỹ Đức B - Hà Nội', url: 'https://drive.google.com/file/d/10dRse0kuZwgtEcSgyxxe3XrCdvPEVMla/preview' },
-  { t: '11. Chuyên Võ Nguyên Giáp - Quảng Bình', url: 'https://drive.google.com/file/d/10lzPKSu_yyefVDdnyiTGG8CA8kSkcH-L/preview' },
-  { t: '56. THPT Chuyên Hạ Long - Quảng Ninh', url: 'https://drive.google.com/file/d/13y77hlAzdF86koWrMhJ2IGxU4tyk2Pob/preview' },
-  { t: '27. THPT Chuyên Bình Long - Bình Phước', url: 'https://drive.google.com/file/d/164VWvDTvUEuaqabDYNETyY23qKTUvNoi/preview' },
-  { t: '35. Cụm Chuyên môn số 3 - Đắk Lắk', url: 'https://drive.google.com/file/d/16DuDvpZ4NqBZIlzLbQVEMIQsziB8mlIG/preview' },
-  { t: '37. Sở giáo dục và đào tạo Tuyên Quang - Mã đề chẵn', url: 'https://drive.google.com/file/d/16vy1aj8dLnoBD65Op68g-oomF3KwQ1SM/preview' },
-  { t: '46. Cụm liên trường THPT Quảng Nam', url: 'https://drive.google.com/file/d/17Nk4W7IzRR-R99UCJ5MomTWN0Od5hfKb/preview' },
-  { t: '40. THPT Hậu Lộc 1 - Thanh Hóa', url: 'https://drive.google.com/file/d/17guOpgNJqcOcAk3fMrayPR87przxrQ1m/preview' },
-  { t: '13. THPT Chuyên Quang Trung - Bình Phước - Lần 1', url: 'https://drive.google.com/file/d/18SSohnDiIj44bbPFlwiHjPVb5BJGDUud/preview' },
-  { t: '51. Sở giáo dục và đào tạo Phú Thọ', url: 'https://drive.google.com/file/d/1A96krNuqNpGuYpJ3_Qws7_MzrrudO4r-/preview' },
-  { t: '49. THPT Thuận Thành 1&2 - Bắc Ninh (Mã đề lẻ)', url: 'https://drive.google.com/file/d/1AgnB3RWLBfvBPGSxZB-r_Ok5Z9IqyMqq/preview' },
-  { t: '36. Sở giáo dục và đào tạo Bắc Giang', url: 'https://drive.google.com/file/d/1EHRpLV6Qf7ieBKyUYBgqUuCrWwI-P4p4/preview' },
-  { t: '4. Sở giáo dục và đào tạo Ninh Bình (Mã đề lẻ)', url: 'https://drive.google.com/file/d/1F9wI0-BtQycSEes6UioBIm6wS48dpn37/preview' },
-  { t: '31. THPT Chuyên Nguyễn Tất Thành - Kon Tum', url: 'https://drive.google.com/file/d/1HtmWpqEgWnktm4LcSuUzC1aZa5TX_pXc/preview' },
-  { t: '20. THCS - THPT Nguyễn Khuyến - TP.HCM', url: 'https://drive.google.com/file/d/1IWa4sIcaqecXa019RroSwcdZY0oYTVRX/preview' },
-  { t: '34. THPT Đào Duy Từ - Thanh Hóa (Lần 2)', url: 'https://drive.google.com/file/d/1JJJwIVvTSU439zUN1sEvr8FH1TpfzWa9/preview' },
-  { t: '3. THPT Ngô Gia Tự - Vĩnh Phúc - Lần 1', url: 'https://drive.google.com/file/d/1JdXN6yyz0uy7HTQ9xaHbES33JbgH4vYE/preview' },
-  { t: '44. THPT Lê Lợi - Thanh Hóa', url: 'https://drive.google.com/file/d/1K6i791d03Cw8Tx7w0hvj4Y3E_MUppuqb/preview' },
-  { t: '33. THPT Thành Đông - Hải Dương', url: 'https://drive.google.com/file/d/1KbbbZdbNAWr4CcxrPnM1cq2uhxwLfjpN/preview' },
-  { t: '48. Liên trường THPT Hải Phòng', url: 'https://drive.google.com/file/d/1LFNRHjLzPU7jvgnnoNJ8_uJ-YT8Ub28G/preview' },
-  { t: '41. Cụm các trường Phía Nam Hưng Yên', url: 'https://drive.google.com/file/d/1LwwGy3BNG32oDoho7bNFw_6XmgjHBOJy/preview' },
-  { t: '32. THPT Chuyên Đại học Vinh - Nghệ An', url: 'https://drive.google.com/file/d/1MQl4FxKJYqShKoRbLCQCoYr_yaga6lWZ/preview' },
-  { t: '30. THPT Chuyên Trần Phú - Hải Phòng', url: 'https://drive.google.com/file/d/1N3gdKtrwFl2KJZyW5OF0pjuT6SGPyWAF/preview' },
-  { t: '52. Sở giáo dục và đào tạo Thanh Hóa', url: 'https://drive.google.com/file/d/1Nxeo93-7vWErWApP2Ka-kjmBOa8IBDya/preview' },
-  { t: '6. THPT Thuận Thành 3 - Bắc Ninh (Mã đề chẵn)', url: 'https://drive.google.com/file/d/1Pn5rCvz4GoGgDfSunp1M4BWiTYTAIHR1/preview' },
-  { t: '9. Chuyên Vĩnh Phúc (Lần 1)', url: 'https://drive.google.com/file/d/1QBxMMYCJq5L1Q_AzB2azwNE5f9RYb98Q/preview' },
-  { t: '5. THPT Sơn Thịnh - Yên Bái', url: 'https://drive.google.com/file/d/1QUIJd4tlBsQ7jP7BFoygN_uSkjpQWZhr/preview' },
-  { t: '38. Sở giáo dục và đào tạo Tuyên Quang - Mã đề lẻ', url: 'https://drive.google.com/file/d/1T2v8PnBPtRJtzctyk4txVH9hBjaOZZug/preview' },
-  { t: '50. THPT Ba Đình - Thanh Hóa', url: 'https://drive.google.com/file/d/1TYG-zvFbbu-SQNQyEjxfwK4_42FWI9DZ/preview' },
-  { t: '28. THPT Chuyên Chu Văn An - Lạng Sơn', url: 'https://drive.google.com/file/d/1V-WVAAKKTxL09CInIfhZ16p_0t2kTh3b/preview' },
-  { t: '18. THPT Nguyễn Trãi (Thường Tín - Hà Nội)', url: 'https://drive.google.com/file/d/1VzecWlay8LSESek1JnpMA2c3IBTy-8jW/preview' },
-  { t: '21. Cụm Liên trường THPT Hải Dương', url: 'https://drive.google.com/file/d/1ZE6HSk4UM5yTHbbieBgL5UP5TANjtKrQ/preview' },
-  { t: '1. THPT Kỳ Anh - Hà Tĩnh', url: 'https://drive.google.com/file/d/1_PY6Upvydqysv9PvasEKDRB0N0IFTtPZ/preview' },
-  { t: '8. THPT Gò Công Đông - Tiền Giang', url: 'https://drive.google.com/file/d/1a1zSHtbXTQlZRl1uXqmJ_bbPG03HF1QG/preview' },
-  { t: '2. THPT Chuyên Nguyễn Tất Thành - Yên Bái', url: 'https://drive.google.com/file/d/1b2c9GE9A1f9fJjmL0a01lm3NuaAT8IGa/preview' },
-  { t: '45. THPT Tuệ Tĩnh - Hải Dương', url: 'https://drive.google.com/file/d/1b3hZIY4h0a61mkzDd6teaaIBZ-PZTM1Y/preview' },
-  { t: '55. THPT Chuyên Lê Thánh Tông - Quảng Nam', url: 'https://drive.google.com/file/d/1bWnxOLEf0LbThueXpdG1745Jw5766zCf/preview' },
-  { t: '10. Sở giáo dục và đào tạo Yên Bái (Mã lẻ)', url: 'https://drive.google.com/file/d/1cMwGlXrhYR6xzBCh_teBdyKEN5KGPIi8/preview' },
-  { t: '5. THPT Sơn Thịnh - Yên Bái (Bản 2)', url: 'https://drive.google.com/file/d/1dKcAUueGYlIECcv9FPV2D6IpaOZMhguC/preview' },
-  { t: '43. Cụm liên trường THPT Nam Đàn - Thái Hòa (Nghệ An)', url: 'https://drive.google.com/file/d/1e0YAnGGiZmNelV2FS9BYBaP9Gv0dMsl5/preview' },
-  { t: '42. Cụm các trường THPT tỉnh Hải Dương', url: 'https://drive.google.com/file/d/1hG9ZB95UVhhaGc-vewzI1qjvou29sxzp/preview' },
-  { t: '47. Cụm liên trường THPT Thanh Hóa', url: 'https://drive.google.com/file/d/1jZtvCO6O-vUH6sRRmbMBGEZ24CRwNOox/preview' },
-  { t: '7. Chuyên Phan Bội Châu – Nghệ An', url: 'https://drive.google.com/file/d/1lodDpTCoIvr8ZXEwXMR36uhq22V_BvyP/preview' },
-  { t: '19. THPT Nghèn - Hà Tĩnh', url: 'https://drive.google.com/file/d/1mm2k4MtUjEEskW1c9gX4mlYxxbO6CHnL/preview' },
-  { t: '17. THPT Kinh Môn - Hải Dương', url: 'https://drive.google.com/file/d/1mvuktIfP2tqXxAoqxPEZPsgAjpNW5BTo/preview' },
-  { t: '12. THPT Nguyễn Khuyến - Bình Dương', url: 'https://drive.google.com/file/d/1nFqoH7rcD4u6urzCF9pf288EojDH78Rd/preview' },
-  { t: '22. Sở giáo dục và đào tạo Bắc Ninh', url: 'https://drive.google.com/file/d/1oJAAaqjjojcBr4sOtAJgwvDPgIbGSN46/preview' },
-  { t: '25. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 903)', url: 'https://drive.google.com/file/d/1oYHnf3yqVJUuI09GYArd0Y670Ya4tzOT/preview' },
-  { t: '23. Sở giáo dục và đào tạo Vĩnh Phúc (Mã đề 901)', url: 'https://drive.google.com/file/d/1ol4u8ZemsNJ8b54F2pw8-4uCNHd7AEce/preview' },
-  { t: '14. THPT Nguyễn Quang Diệu - Đồng Tháp - Lần 1', url: 'https://drive.google.com/file/d/1pPkvoJKi7S_QyTJ4SJJplj6F9W6mC7XC/preview' },
-  { t: '15. THPT Hoàng Văn Thụ - Hà Nội - Lần 1', url: 'https://drive.google.com/file/d/1rKAsBcCvl2PmkcgqZ5RUUmjw4PsQRjFs/preview' },
-  { t: '29. Liên trường THPT Nghệ An (Mã đề chẵn)', url: 'https://drive.google.com/file/d/1u90WPkPBPv_Tm3eOtn8mb0g5pmuvs1s4/preview' },
-  { t: '39. THPT Chuyên Nguyễn Văn Trỗi - Hà Tĩnh', url: 'https://drive.google.com/file/d/1umgawAJv0IX1kfRpg1VbTW4xIK01Bj6z/preview' },
-  { t: '54. Sở giáo dục và đào tạo Ninh Bình (Lần 2)', url: 'https://drive.google.com/file/d/1v2KXUFNUFcoH7ttHnmlSHl0hFYGzxa_e/preview' },
-  { t: '53. Liên trường THPT Nghệ An (Mã đề Lẻ)', url: 'https://drive.google.com/file/d/1x5kpd_NYr926HE7SJjmCmYvhOdh-6MW6/preview' },
-  { t: '47. Cụm liên trường THPT Thanh Hóa (Bản 2)', url: 'https://drive.google.com/file/d/1xG95y2ojmmCl75jWqP9AlTsLqMlyVayD/preview' }
-],
-        exams: [] },
+let mockSubjectData = {
+    'Toán': { videos: [], docs: [], exams: [] },
+    'Lý':   { videos: [], docs: [], exams: [] },
+    'Hóa':  { videos: [], docs: [], exams: [] },
+    'Văn':  { videos: [], docs: [], exams: [] },
+    'Anh':  { videos: [], docs: [], exams: [] },
     'default': { videos: [], docs: [], exams: [] }
 };
 
+// Hàm làm sạch chuỗi
+function cleanText(txt) {
+    if (!txt) return '';
+    return txt.trim().replace(/^"|"$/g, '');
+}
+
+// Hàm sửa link Google Drive (FIX LỖI CSP BLOCKED)
+function fixDriveLink(url) {
+    if (!url) return '';
+    url = url.trim();
+    if (url.includes('drive.google.com')) {
+        if (url.includes('/preview')) return url;
+        return url.replace(/\/view.*/, '/preview')
+                  .replace(/\/edit.*/, '/preview')
+                  .replace(/\/open.*/, '/preview');
+    }
+    return url;
+}
+
+// Hàm phân loại Video (FIX LỖI 404 & EMBED)
+function processVideoLink(url) {
+    if (!url) return { type: 'other', src: '' };
+    url = url.trim();
+
+    // 1. ID YouTube (11 ký tự)
+    const ytIdRegex = /^[a-zA-Z0-9_-]{11}$/;
+    if (ytIdRegex.test(url)) return { type: 'youtube', src: url };
+
+    // 2. Link YouTube
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = url.match(regExp);
+        const id = (match && match[2].length === 11) ? match[2] : null;
+        return { type: 'youtube', src: id || url };
+    }
+
+    // 3. Facebook
+    if (url.includes('facebook.com') || url.includes('fb.watch')) {
+        const embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&t=0`;
+        return { type: 'facebook', src: embedUrl };
+    }
+
+   // 4. TikTok (NÂNG CẤP)
+    if (url.includes('tiktok.com')) {
+        // Regex tìm ID: Tìm chuỗi số dài sau /video/ hoặc /v/
+        // Hỗ trợ link dạng: tiktok.com/@user/video/723456... hoặc tiktok.com/v/723456...
+        const idMatch = url.match(/(?:video|v)\/([0-9]+)/);
+        
+        if (idMatch && idMatch[1]) {
+            // Dùng link embed v2 chuẩn của TikTok + ngôn ngữ tiếng Việt
+            return { type: 'tiktok', src: `https://www.tiktok.com/embed/v2/${idMatch[1]}?lang=vi-VN` };
+        }
+        
+        // Nếu không lấy được ID (ví dụ link rút gọn vt.tiktok.com), trả về link gốc (có thể lỗi nhưng đỡ hơn 404)
+        console.warn("Không lấy được ID TikTok, dùng link gốc:", url);
+        return { type: 'tiktok', src: url };
+    }
+
+    return { type: 'other', src: url };
+}
+
+async function loadDataFromSheet() {
+    try {
+        console.log("Đang tải dữ liệu từ Sheet...");
+        const response = await fetch(GOOGLE_SHEET_CSV_URL);
+        const text = await response.text();
+        const rows = text.split('\n').slice(1);
+
+        // Reset data
+        mockSubjectData = {
+            'Toán': { videos: [], docs: [], exams: [] },
+            'Lý':   { videos: [], docs: [], exams: [] },
+            'Hóa':  { videos: [], docs: [], exams: [] },
+            'Văn':  { videos: [], docs: [], exams: [] },
+            'Anh':  { videos: [], docs: [], exams: [] },
+            'default': { videos: [], docs: [], exams: [] }
+        };
+
+        rows.forEach(row => {
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            if (cols.length < 1) return;
+
+            const subjectName = cleanText(cols[0]); 
+            if (!subjectName) return; 
+            const target = mockSubjectData[subjectName] ? subjectName : 'default';
+
+            // Xử lý Video
+            const vidName = cleanText(cols[1]);
+            const vidRaw = cleanText(cols[2]);
+            if (vidName && vidRaw) {
+                const vidObj = processVideoLink(vidRaw);
+                mockSubjectData[target].videos.push({ t: vidName, data: vidObj });
+            }
+
+            // Xử lý Tài liệu
+            const docName = cleanText(cols[3]);
+            const docLink = fixDriveLink(cleanText(cols[4]));
+            if (docName && docLink) mockSubjectData[target].docs.push({ t: docName, url: docLink });
+
+            // Xử lý Đề thi
+            const examName = cleanText(cols[5]);
+            const examLink = fixDriveLink(cleanText(cols[6]));
+            if (examName && examLink) mockSubjectData[target].exams.push({ t: examName, url: examLink });
+        });
+
+        if(typeof toast === 'function') toast('Dữ liệu đã cập nhật!', 'success');
+        console.log("Data Loaded:", mockSubjectData);
+
+    } catch (error) { console.error("Lỗi tải data:", error); }
+}
+
+// Gọi hàm tải ngay lập tức
+loadDataFromSheet();
+
+
+// ==========================================
+// --- 2. GIAO DIỆN HIỂN THỊ (OPEN SUBJECT) ---
+// ==========================================
+
 window.openSubject = (subj) => {
     const data = mockSubjectData[subj] || mockSubjectData['default'];
-    document.getElementById('detail-subject-title').innerText = `Môn ${subj}`;
-    document.getElementById('subj-content-video').innerHTML = data.videos.map((v, i) => `
-        <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center">
-            <span class="font-bold text-sm">Bài ${i+1}: ${v.t}</span>
-            <button onclick="playVideo('${v.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700">Học</button>
-        </div>
-    `).join('') || '<p class="text-gray-400 mt-2">Chưa có video.</p>';
-    document.getElementById('subj-content-doc').innerHTML = data.docs.map(d => `
-        <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-blue-500">
-            <span class="font-bold text-sm"><i class="fas fa-file-pdf text-blue-500"></i> ${d.t}</span>
-            <button onclick="openEmbedModal('${d.url}', '${d.t}')" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"><i class="fas fa-eye"></i> Xem</button>
-        </div>
-    `).join('') || '';
-    switchSubjectTab('video');
-    window.handleNavReal('subject-detail');
+    
+    // Cập nhật tiêu đề
+    const titleEl = document.getElementById('detail-subject-title');
+    if(titleEl) titleEl.innerText = `Môn ${subj}`;
+
+    // --- RENDER VIDEO ---
+    const videoContainer = document.getElementById('subj-content-video');
+    if (videoContainer) {
+        if (data.videos.length > 0) {
+            videoContainer.innerHTML = data.videos.map((v, i) => {
+                const type = v.data ? v.data.type : 'youtube';
+                const src = v.data ? v.data.src : v.id; // Fallback cho data cũ
+
+                let icon = '<i class="fas fa-play"></i>';
+                let colorClass = 'bg-red-100 text-red-600';
+                
+                if (type === 'facebook') { icon = '<i class="fab fa-facebook-f"></i>'; colorClass = 'bg-blue-100 text-blue-600'; }
+                else if (type === 'tiktok') { icon = '<i class="fab fa-tiktok"></i>'; colorClass = 'bg-gray-900 text-white'; }
+
+                return `
+                <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center transform hover:scale-[1.01] transition border border-gray-100">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="${colorClass} w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">${icon}</div>
+                        <div class="flex flex-col overflow-hidden">
+                            <span class="font-bold text-sm text-gray-700 truncate">${v.t}</span>
+                            <span class="text-[10px] text-gray-400 uppercase tracking-wider">${type}</span>
+                        </div>
+                    </div>
+                    <button onclick="playUniversalVideo('${type}', '${src}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 shadow active:scale-95 transition">Xem</button>
+                </div>`;
+            }).join('');
+        } else {
+            videoContainer.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-video text-4xl mb-2"></i><p>Chưa có video.</p></div>';
+        }
+    }
+
+    // --- RENDER TÀI LIỆU ---
+    const docContainer = document.getElementById('subj-content-doc');
+    if (docContainer) {
+        docContainer.innerHTML = data.docs.length > 0 ? data.docs.map(d => `
+            <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-blue-500 hover:shadow-md transition cursor-pointer" onclick="openEmbedModal('${d.url}', '${d.t}')">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <i class="fas fa-file-pdf text-blue-500 text-xl"></i>
+                    <span class="font-bold text-sm truncate text-gray-700">${d.t}</span>
+                </div>
+                <button class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded text-xs font-bold"><i class="fas fa-eye"></i> Xem</button>
+            </div>
+        `).join('') : '<div class="text-center py-10 text-gray-400"><i class="fas fa-folder-open text-4xl mb-2"></i><p>Chưa có tài liệu.</p></div>';
+    }
+
+    // --- RENDER ĐỀ THI ---
+    const examContainer = document.getElementById('subj-content-exam');
+    if (examContainer) {
+        examContainer.innerHTML = data.exams.length > 0 ? data.exams.map(e => `
+            <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-purple-500 hover:shadow-md transition cursor-pointer" onclick="openEmbedModal('${e.url}', '${e.t}')">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <i class="fas fa-edit text-purple-500 text-xl"></i>
+                    <span class="font-bold text-sm truncate text-gray-700">${e.t}</span>
+                </div>
+                <button class="text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded text-xs font-bold"><i class="fas fa-pen"></i> Làm</button>
+            </div>
+        `).join('') : '<div class="text-center py-10 text-gray-400"><i class="fas fa-scroll text-4xl mb-2"></i><p>Chưa có đề thi.</p></div>';
+    }
+
+    if(typeof switchSubjectTab === 'function') switchSubjectTab('video');
+    if(typeof window.handleNavReal === 'function') window.handleNavReal('subject-detail');
 };
 
+
+// ==========================================
+// --- 3. VIDEO PLAYER & MODAL UTILS ---
+// ==========================================
+
+// Hàm chuyển Tab
+window.switchSubjectTab = (tab) => {
+    ['video', 'doc', 'exam'].forEach(t => {
+        const btn = document.getElementById(`tab-subj-${t}`);
+        const content = document.getElementById(`subj-content-${t}`);
+        if(content && btn) {
+            if(t === tab) { 
+                btn.className = "flex-1 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 transition min-w-[100px] whitespace-nowrap"; 
+                content.classList.remove('hidden-section'); 
+            } else { 
+                btn.className = "flex-1 py-3 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition min-w-[100px] whitespace-nowrap"; 
+                content.classList.add('hidden-section'); 
+            }
+        }
+    });
+};
+
+// Hàm mở Modal Embed (Tài liệu/Đề thi)
 window.openEmbedModal = (url, title) => {
     document.getElementById('embed-title').innerText = title;
     document.getElementById('embed-frame').src = url;
@@ -1274,22 +1459,93 @@ window.closeEmbedModal = () => {
     document.getElementById('embed-frame').src = '';
 };
 
-window.switchSubjectTab = (tab) => {
-    ['video', 'doc', 'exam'].forEach(t => {
-        const btn = document.getElementById(`tab-subj-${t}`);
-        const content = document.getElementById(`subj-content-${t}`);
-        if(t===tab) { btn.classList.add('border-b-2', 'border-indigo-600', 'text-indigo-600'); btn.classList.remove('text-gray-500'); content.classList.remove('hidden-section'); }
-        else { btn.classList.remove('border-b-2', 'border-indigo-600', 'text-indigo-600'); btn.classList.add('text-gray-500'); content.classList.add('hidden-section'); }
-    });
-};
-window.playVideo = (vidId) => {
-    document.getElementById('video-modal').classList.remove('hidden'); if(player) player.loadVideoById(vidId); else player = new YT.Player('youtube-player', { height: '100%', width: '100%', videoId: vidId, playerVars: { 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0 }, events: { 'onStateChange': onPlayerStateChange } }); 
-};
-function onPlayerStateChange(event) { if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); else clearInterval(videoTimer); }
-function strictVideoLoop() { if(!player || !player.getDuration) return; const cur = player.getCurrentTime(), dur = player.getDuration(), per = (cur/dur)*100; document.getElementById('video-bar').style.width = per + '%'; document.getElementById('video-percent').innerText = Math.round(per) + '%'; const m = Math.floor(cur/60), s = Math.floor(cur%60); document.getElementById('video-time').innerText = `${m}:${s<10?'0'+s:s}`; if (player.isMuted()) player.unMute(); }
-window.closeVideoModal = () => { document.getElementById('video-modal').classList.add('hidden'); if(player && player.stopVideo) player.stopVideo(); clearInterval(videoTimer); };
+// Hàm phát Video Đa Năng (MỚI)
+window.playUniversalVideo = (type, src) => {
+    const modal = document.getElementById('video-modal');
+    const ytContainer = document.getElementById('youtube-player');
+    const genericFrame = document.getElementById('generic-player');
+    const ytControls = document.getElementById('yt-controls');
 
-// ============================================================
+    if(!modal) return;
+    modal.classList.remove('hidden');
+
+    // Reset
+    if (genericFrame) genericFrame.src = ''; 
+    if (player && typeof player.stopVideo === 'function') player.stopVideo();
+
+    if (type === 'youtube') {
+        // --- CHẾ ĐỘ YOUTUBE ---
+        if(ytContainer) ytContainer.classList.remove('hidden');
+        if(genericFrame) genericFrame.classList.add('hidden');
+        if(ytControls) ytControls.classList.remove('hidden');
+
+        if (player) {
+            player.loadVideoById(src);
+        } else {
+            if (window.YT && window.YT.Player) {
+                player = new YT.Player('youtube-player', {
+                    height: '100%', width: '100%', videoId: src,
+                    playerVars: { 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0 },
+                    events: { 'onStateChange': onPlayerStateChange }
+                });
+            }
+        }
+    } else {
+        // --- CHẾ ĐỘ FACEBOOK / TIKTOK ---
+        if(ytContainer) ytContainer.classList.add('hidden');
+        if(ytControls) ytControls.classList.add('hidden');
+        
+        if(genericFrame) {
+            genericFrame.classList.remove('hidden');
+            if (src && src.includes('http')) {
+                genericFrame.src = src;
+            } else {
+                console.warn("Link video iframe không hợp lệ:", src);
+            }
+        }
+    }
+};
+
+// Hàm cầu nối cho code cũ (CHỐNG LỖI NOT DEFINED)
+window.playVideo = (id) => {
+    console.log("Redirecting legacy playVideo call...");
+    window.playUniversalVideo('youtube', id);
+};
+
+// Hàm đóng Modal Video
+window.closeVideoModal = () => {
+    document.getElementById('video-modal').classList.add('hidden');
+    if(player && typeof player.stopVideo === 'function') player.stopVideo();
+    
+    const genericFrame = document.getElementById('generic-player');
+    if(genericFrame) genericFrame.src = '';
+    
+    if(videoTimer) clearInterval(videoTimer);
+};
+
+// Sự kiện Player Youtube
+function onPlayerStateChange(event) { 
+    if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); 
+    else clearInterval(videoTimer); 
+}
+
+function strictVideoLoop() { 
+    if(!player || !player.getDuration) return; 
+    const cur = player.getCurrentTime(), dur = player.getDuration();
+    if(dur > 0) {
+        const per = (cur/dur)*100; 
+        const bar = document.getElementById('video-bar');
+        const txtPer = document.getElementById('video-percent');
+        const txtTime = document.getElementById('video-time');
+        
+        if(bar) bar.style.width = per + '%'; 
+        if(txtPer) txtPer.innerText = Math.round(per) + '%'; 
+        
+        const m = Math.floor(cur/60), s = Math.floor(cur%60); 
+        if(txtTime) txtTime.innerText = `${m}:${s<10?'0'+s:s}`; 
+    }
+    if (player.isMuted()) player.unMute(); 
+}
 // --- LOGIC QUẢN LÝ NHÓM NÂNG CAO (ĐÃ CHUẨN HÓA) ---
 // ============================================================
 
@@ -1805,6 +2061,5 @@ window.handleGameOver = async (score) => {
     updatePlayButtonUI(!audio.paused);
 
 })();
-
 
 
