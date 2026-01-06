@@ -2068,3 +2068,4 @@ window.handleGameOver = async (score) => {
 })();
 
 
+
