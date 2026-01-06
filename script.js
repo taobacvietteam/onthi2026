@@ -1,6 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, getDocs, arrayUnion, arrayRemove, limit, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// --- SỬ DỤNG PHIÊN BẢN ỔN ĐỊNH 10.8.0 (ĐỂ CHẠY ĐƯỢC TRÊN MOBILE) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, getDocs, arrayUnion, arrayRemove, limit, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Thêm dòng này để kiểm tra xem script đã chạy chưa (nếu thấy thông báo này trên đt là OK)
+console.log("Firebase Script Loaded v10.8.0");
 
 // 1. CẤU HÌNH (PROJECT MỚI)
 const firebaseConfig = {
@@ -12,6 +16,7 @@ const firebaseConfig = {
   appId: "1:1016775391844:web:40a7931e1c895e62a3bd71",
   measurementId: "G-ZY0L1XMMNE"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
