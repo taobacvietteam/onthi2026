@@ -300,6 +300,37 @@ window.joinGroup = async (gid, truePass) => {
         toast('Đã vào nhóm!', 'success');
     } else toast('Sai mật khẩu!', 'error');
 };
+// --- HÀM ĐIỀU HƯỚNG CHÍNH (ĐÃ CẬP NHẬT FULL) ---
+window.handleNavReal = (viewId) => {
+    // 1. Ẩn tất cả các màn hình (view)
+    document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
+    
+    // 2. Hiện màn hình được chọn
+    // - Nếu là 'ai-chat', hiện #view-ai-chat
+    if (viewId === 'ai-chat') {
+        document.getElementById('view-ai-chat').classList.remove('hidden-section');
+    } 
+    // - Nếu là 'hsa', hiện #view-hsa
+    else if (viewId === 'hsa') {
+        document.getElementById('view-hsa').classList.remove('hidden-section');
+    }
+    // - Các view còn lại (dashboard, subjects, groups...)
+    else {
+        const target = document.getElementById(`view-${viewId}`);
+        if(target) target.classList.remove('hidden-section');
+    }
+
+    // 3. Tải dữ liệu tương ứng (nếu cần)
+    if (viewId === 'groups') loadGroups();
+    if (viewId === 'admin') loadAdminStats();
+    if (viewId === 'games') loadLeaderboard();
+    
+    // 4. Riêng Chat thì reset taiitle
+    if (viewId === 'chat') {
+        // Mặc định về Chat Global nếu chưa chọn gì
+        if (!currentChatTarget) switchChatTab('global');
+    }
+};
 
 // ==========================================
 // --- CHAT SYSTEM (FULL RESPONSIVE & VIDEO) ---
@@ -775,6 +806,306 @@ window.endMeeting = () => {
         // Mặc định quay về Chat (vì Chat phổ biến hơn), 
         // hoặc bạn có thể đổi thành 'groups' nếu muốn ưu tiên nhóm như code cũ.
         if(window.nav) window.nav('chat'); else window.handleNavReal('chat');
+    }
+};
+// ==========================================
+// --- GEMINI AI CHAT SYSTEM (OPTIMIZED) ---
+// ==========================================
+
+// 1. CẤU HÌNH API
+const GEMINI_API_KEY = "AIzaSyAZkIEqaINg7NlymXnUW829ahxWnaqtE1w"; 
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+// Biến toàn cục lưu trạng thái ảnh
+let currentAIImageBase64 = null;
+let currentMimeType = null;
+
+// ================= 1. CÔNG NGHỆ NÉN ẢNH (GIỮ NGUYÊN VÌ RẤT TỐT) =================
+function compressImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Resize về max 800px để gửi đi nhanh
+                const MAX_SIZE = 800; 
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Nén JPEG chất lượng 0.7 (Cân bằng giữa đẹp và nhẹ)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(dataUrl);
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+}
+
+// ================= 2. XỬ LÝ CHỌN ẢNH =================
+window.handleAIImageSelect = async function(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    // Kiểm tra định dạng
+    if (!file.type.startsWith('image/')) {
+        alert("Vui lòng chỉ chọn file ảnh!");
+        return;
+    }
+
+    try {
+        // Gọi hàm nén ảnh
+        const resizedBase64 = await compressImage(file);
+        
+        // Hiển thị Preview lên giao diện
+        const imgDisplay = document.getElementById('ai-img-display');
+        const previewBlock = document.getElementById('ai-image-preview');
+        
+        if(imgDisplay && previewBlock) {
+            imgDisplay.src = resizedBase64;
+            previewBlock.classList.remove('hidden');
+        }
+        
+        // Lưu dữ liệu để gửi đi (bỏ phần prefix 'data:image/jpeg;base64,')
+        currentAIImageBase64 = resizedBase64.split(',')[1]; 
+        currentMimeType = 'image/jpeg';
+        
+    } catch (e) {
+        console.error("Lỗi xử lý ảnh:", e);
+        alert("Không thể đọc file ảnh này. Thử ảnh khác xem sao!");
+    }
+};
+
+// ================= 3. XÓA ẢNH ĐANG CHỌN =================
+window.removeAIImage = function() {
+    const fileInput = document.getElementById('ai-image-input');
+    const previewBlock = document.getElementById('ai-image-preview');
+    const imgDisplay = document.getElementById('ai-img-display');
+
+    if(fileInput) fileInput.value = ''; 
+    if(previewBlock) previewBlock.classList.add('hidden');
+    if(imgDisplay) imgDisplay.src = '';
+    
+    currentAIImageBase64 = null;
+    currentMimeType = null;
+};
+
+// ================= 4. XỬ LÝ PHÍM ENTER =================
+window.handleAIEnter = function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        window.sendToGemini();
+        // Reset chiều cao ô input
+        e.target.style.height = 'auto';
+    }
+};
+
+// ================= 5. GỬI TIN NHẮN (ĐÃ SỬA LỖI ĐỌC ẢNH) =================
+window.sendToGemini = async function(isRetry = false) {
+    if (typeof GEMINI_API_KEY === 'undefined' || GEMINI_API_KEY.includes("DIEN_API")) {
+        alert("⚠️ Bạn chưa điền API Key!");
+        return;
+    }
+
+    const input = document.getElementById('ai-input');
+    let text = input.value.trim();
+
+    // --- LOGIC LẤY DỮ LIỆU ---
+    if (!isRetry) {
+        // Nếu có ảnh mà ko có chữ -> Tự thêm chữ
+        if (currentAIImageBase64 && !text) {
+            text = "Hãy phân tích chi tiết hình ảnh này.";
+        }
+
+        if (!text && !currentAIImageBase64) {
+            alert("Bạn chưa nhập nội dung!");
+            return;
+        }
+
+        // Hiển thị tin nhắn User
+        let displayImgSrc = null;
+        if(currentAIImageBase64) {
+            displayImgSrc = document.getElementById('ai-img-display').src;
+        }
+        appendAIMessage('user', text, displayImgSrc);
+        
+        // Lưu tạm để retry nếu cần
+        window.lastRequest = { text, image: currentAIImageBase64, mime: currentMimeType };
+
+        // Reset Input
+        input.value = '';
+        input.style.height = 'auto';
+        window.removeAIImage();
+    } else {
+        text = window.lastRequest.text;
+    }
+
+    // Hiện Loading
+    const loadingId = 'loading-' + Date.now();
+    if (!isRetry) appendAILoading(loadingId);
+
+    // --- QUAN TRỌNG: GÓI DỮ LIỆU (ẢNH TRƯỚC - CHỮ SAU) ---
+    const parts = [];
+    const requestImage = isRetry ? window.lastRequest.image : (window.lastRequest?.image || currentAIImageBase64); // Lấy ảnh từ bộ nhớ tạm nếu biến chính đã bị xóa
+    
+    // 1. Đẩy dữ liệu ảnh vào TRƯỚC
+    if (requestImage) {
+        parts.push({
+            inline_data: {
+                mime_type: 'image/jpeg', // Luôn ép kiểu JPEG cho ổn định
+                data: requestImage
+            }
+        });
+        console.log("Đã đóng gói ảnh gửi đi. Kích thước: " + requestImage.length);
+    }
+
+    // 2. Đẩy câu hỏi vào SAU
+    parts.push({ text: text });
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: parts }] })
+        });
+
+        // Xử lý mạng bận (429/503)
+        if (response.status === 429 || response.status === 503) {
+            const loadingElem = document.getElementById(loadingId);
+            if(loadingElem) loadingElem.innerHTML = `<span class="text-orange-500 text-xs animate-pulse">⏳ Mạng bận, thử lại sau 5s...</span>`;
+            await new Promise(r => setTimeout(r, 5000));
+            if(loadingElem) loadingElem.remove();
+            appendAILoading(loadingId);
+            await window.sendToGemini(true);
+            return;
+        }
+
+        if (!response.ok) throw new Error(`Lỗi ${response.status}`);
+
+        const data = await response.json();
+        const loadingFinal = document.getElementById(loadingId);
+        if(loadingFinal) loadingFinal.remove();
+
+        if (data.candidates && data.candidates[0].content) {
+            const reply = data.candidates[0].content.parts[0].text;
+            appendAIMessage('ai', reply);
+        } else {
+            appendAIMessage('ai', 'Không nhận được phản hồi.');
+        }
+
+    } catch (error) {
+        const loadingElem = document.getElementById(loadingId);
+        if(loadingElem) loadingElem.remove();
+        console.error(error);
+        appendAIMessage('ai', `⚠️ Lỗi: ${error.message}`);
+    }
+};
+// ================= 6. HÀM UI: VẼ TIN NHẮN =================
+// Thay thế toàn bộ hàm appendAIMessage cũ bằng hàm này
+function appendAIMessage(role, text, imgSrc = null) {
+    const container = document.getElementById('ai-chat-messages');
+    if(!container) return;
+
+    const div = document.createElement('div');
+    
+    // 1. Xử lý Markdown (In đậm, list, xuống dòng)
+    // Nếu chưa cài thư viện marked thì dùng fallback text thường
+    let htmlContent = (typeof marked !== 'undefined') ? marked.parse(text) : text.replace(/\n/g, '<br>');
+
+    // 2. CSS cho tin nhắn
+    if (role === 'user') {
+        div.className = "flex items-end justify-end gap-2 animate-fade-in-up mb-4";
+        let imgHtml = imgSrc ? `<img src="${imgSrc}" class="max-w-[200px] rounded-lg border border-white/20 mb-2 block ml-auto object-cover">` : '';
+        div.innerHTML = `
+            <div class="max-w-[85%] text-right">
+                <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-br-none shadow-md text-sm leading-relaxed inline-block text-left prose prose-invert max-w-none">
+                    ${imgHtml}
+                    <div>${htmlContent}</div>
+                </div>
+            </div>`;
+    } else {
+        div.className = "flex items-start gap-3 animate-fade-in-up mb-4";
+        div.innerHTML = `
+            <div class="bg-white border border-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-purple-600 flex-shrink-0 shadow-sm mt-1">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="bg-white border border-gray-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[90%] text-gray-800 text-sm leading-relaxed prose max-w-none">
+                ${htmlContent}
+            </div>`;
+    }
+    
+    container.appendChild(div);
+    
+    // 3. Kích hoạt KaTeX để vẽ công thức toán (Sau khi đã in ra màn hình)
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(div, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false}
+            ],
+            throwOnError: false
+        });
+    }
+
+    container.scrollTop = container.scrollHeight;
+}
+// ================= 7. HÀM UI: HIỆU ỨNG LOADING =================
+function appendAILoading(id) {
+    const container = document.getElementById('ai-chat-messages');
+    if(!container) return;
+    
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = "flex items-start gap-3 mb-4";
+    div.innerHTML = `
+        <div class="bg-white border border-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-purple-600 flex-shrink-0 mt-1">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="bg-gray-100 p-3 rounded-2xl rounded-tl-none max-w-[100px] flex items-center gap-1">
+            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+// ================= 8. TIỆN ÍCH KHÁC =================
+// Tự động resize ô nhập liệu
+setTimeout(() => {
+    const aiInput = document.getElementById('ai-input');
+    if(aiInput) aiInput.addEventListener('input', function() { 
+        this.style.height = 'auto'; 
+        this.style.height = (this.scrollHeight) + 'px'; 
+    });
+}, 1000);
+
+// Xóa chat
+window.clearAIChat = function() {
+    if(confirm("Xóa toàn bộ đoạn chat?")) {
+        document.getElementById('ai-chat-messages').innerHTML = '';
+        window.removeAIImage();
     }
 };
 // ==========================================
@@ -1317,6 +1648,8 @@ async function loadDataFromSheet() {
             'Hóa':  { videos: [], docs: [], exams: [] },
             'Văn':  { videos: [], docs: [], exams: [] },
             'Anh':  { videos: [], docs: [], exams: [] },
+            'HSA':  { videos: [], docs: [], exams: [] },
+            'TSA':  { videos: [], docs: [], exams: [] },
             'default': { videos: [], docs: [], exams: [] }
         };
 
@@ -1929,6 +2262,30 @@ window.handleGameOver = async (score) => {
             cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
         },
         {
+            title: "Kiếp sau vẫn là người Việt Nam ",
+            artist: "NSND THU HUYỀN, Q.THIÊN, DƯƠNG H.YẾN, QUÂN A.P, L.B.NGỌC",
+            src: "https://image2url.com/r2/bucket1/audio/1767770669145-c65d838f-fedf-4144-a10d-717c6870323e.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+        {
+            title: "Made In Viet Nam ",
+            artist: "Phương Mỹ Chi , Trúc Nhân , Thanh Hoa",
+            src: "https://image2url.com/r2/bucket1/audio/1767770502036-1536c1f1-db56-43c5-bbc3-a40714d28063.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+        {
+            title: "Nhà tôi có treo một lá cờ",
+            artist: "Hà Anh Tuấn",
+            src: "https://image2url.com/r2/bucket3/audio/1767770755973-cd025ec2-b849-402b-8ba0-53be267994c7.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+        {
+            title: "Vì một Việt Nam khỏe mạnh",
+            artist: "HÒA MINZY x NGUYỄN HẢI PHONG",
+            src: "https://image2url.com/r2/bucket1/audio/1767771021539-03aac5a7-c022-4cf7-b80d-24e992241219.mp3",
+            cover: "https://placehold.co/100x100/6366f1/white?text=Lofi"
+        },
+        {
             title: "Beat 1",
             artist: "HTP Music Team",
             src: "https://image2url.com/audio/1766418171290-22222a2e-d6aa-4dc1-bc98-86bad2f08119.mp3",
@@ -2066,6 +2423,5 @@ window.handleGameOver = async (score) => {
     updatePlayButtonUI(!audio.paused);
 
 })();
-
 
 
