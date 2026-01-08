@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="vi">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -105,39 +109,63 @@
             </div>
             
             <nav class="flex-1 overflow-y-auto py-2 space-y-1 px-2 custom-scrollbar">
-                <button onclick="nav('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center">
-                    <i class="fas fa-home w-6 text-center"></i> <span class="menu-text ml-2">Trang Chủ</span>
-                </button>
-                <button onclick="nav('subjects')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center">
-                    <i class="fas fa-book w-6 text-center"></i> <span class="menu-text ml-2">Môn Học</span>
-                </button>
-                <button onclick="nav('groups')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center">
-                    <i class="fas fa-users w-6 text-center"></i> <span class="menu-text ml-2">Nhóm Học Tập</span>
-                </button>
-                <button onclick="nav('chat')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center">
-                    <i class="fas fa-comments w-6 text-center"></i> <span class="menu-text ml-2">Tin Nhắn</span>
-                </button>
-                <button onclick="nav('games')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center">
-                    <i class="fas fa-gamepad w-6 text-center"></i> <span class="menu-text ml-2">Giải Trí</span>
-                </button>
-                <button onclick="toggleMusicPlayer()" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center justify-between">
-                    <div class="flex items-center">
-                        <i class="fas fa-music w-6 text-center"></i> 
-                        <span class="menu-text ml-2">Relax Music</span>
-                    </div>
-                    <span id="music-indicator" class="hidden flex space-x-0.5 h-3 items-end mr-2">
-                        <span class="w-0.5 h-full bg-indigo-500 animate-[bounce_1s_infinite]"></span>
-                        <span class="w-0.5 h-2 bg-indigo-500 animate-[bounce_1.2s_infinite]"></span>
-                        <span class="w-0.5 h-3 bg-indigo-500 animate-[bounce_0.8s_infinite]"></span>
-                    </span>
-                </button>
-                <button onclick="nav('cinema')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-red-600 transition flex items-center group">
-                    <div class="w-6 text-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-film"></i>
-                    </div>
-                    <span class="menu-text ml-2 font-medium">Rạp Chiếu Phim</span>
-                    <span class="ml-auto bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">HD</span>
-                </button>
+    
+<button onclick="nav('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+        <i class="fas fa-home w-6 text-center group-hover:scale-110 transition-transform"></i> 
+        <span class="menu-text ml-2 font-medium">Trang Chủ</span>
+    </button>
+
+    <button onclick="nav('subjects')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+        <i class="fas fa-book w-6 text-center group-hover:scale-110 transition-transform"></i> 
+        <span class="menu-text ml-2 font-medium">Môn Học</span>
+    </button>
+
+    <button onclick="nav('groups')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+        <i class="fas fa-users w-6 text-center group-hover:scale-110 transition-transform"></i> 
+        <span class="menu-text ml-2 font-medium">Nhóm Học Tập</span>
+    </button>
+
+    <button onclick="window.handleNavReal('hsa')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+        <i class="fas fa-brain w-6 text-center group-hover:scale-110 transition-transform"></i> 
+        <span class="menu-text ml-2 font-bold text-indigo-700 group-hover:text-indigo-800">Luyện Thi HSA/TSA</span>
+    </button>
+
+    <button onclick="nav('chat')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+        <i class="fas fa-comments w-6 text-center group-hover:scale-110 transition-transform"></i> 
+        <span class="menu-text ml-2 font-medium">Tin Nhắn</span>
+    </button>
+<button onclick="nav('ai-chat')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+    <i class="fas fa-robot w-6 text-center group-hover:scale-110 transition-transform"></i> 
+    <span class="menu-text ml-2 font-medium">Trợ Lý AI </span>
+    <span class="ml-auto bg-gradient-to-r from-blue-500 to-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">PRO</span>
+</button>
+    <button onclick="nav('games')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
+        <i class="fas fa-gamepad w-6 text-center group-hover:scale-110 transition-transform"></i> 
+        <span class="menu-text ml-2 font-medium">Giải Trí</span>
+    </button>
+
+    <button onclick="toggleMusicPlayer()" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center justify-between group">
+        <div class="flex items-center">
+            <i class="fas fa-music w-6 text-center group-hover:scale-110 transition-transform"></i> 
+            <span class="menu-text ml-2 font-medium">Relax Music</span>
+        </div>
+        <span id="music-indicator" class="hidden flex space-x-0.5 h-3 items-end mr-2">
+            <span class="w-0.5 h-full bg-indigo-500 animate-[bounce_1s_infinite]"></span>
+            <span class="w-0.5 h-2 bg-indigo-500 animate-[bounce_1.2s_infinite]"></span>
+            <span class="w-0.5 h-3 bg-indigo-500 animate-[bounce_0.8s_infinite]"></span>
+        </span>
+    </button>
+
+    <button onclick="nav('cinema')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-gray-600 hover:text-red-600 transition flex items-center group">
+        <div class="w-6 text-center group-hover:scale-110 transition-transform">
+            <i class="fas fa-film"></i>
+        </div>
+        <span class="menu-text ml-2 font-medium">Rạp Chiếu Phim</span>
+        <span class="ml-auto bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">HD</span>
+    </button>
+    
+
+
 
                 <div id="admin-menu" class="hidden pt-4 border-t mt-4">
                     <p class="px-4 text-xs font-bold text-gray-400 uppercase menu-text mb-2">Admin</p>
@@ -292,7 +320,104 @@
                         </div>
                     </div>
                 </div>
+<div id="view-hsa" class="hidden-section fade-in h-full overflow-y-auto p-4 md:p-8">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Luyện Thi Đánh Giá Năng Lực & Tư Duy</h2>
+        <p class="text-gray-500">Chọn kỳ thi bạn muốn ôn luyện để truy cập kho bài giảng và đề thi chuyên biệt.</p>
+    </div>
 
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div onclick="openSubject('HSA')" class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white cursor-pointer shadow-lg hover:shadow-2xl hover:-translate-y-1 transition transform relative overflow-hidden group">
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full group-hover:scale-150 transition duration-700"></div>
+            <div class="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                    <div class="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-2xl font-bold">H</div>
+                    <h3 class="text-2xl font-bold mb-1">Thi ĐGNL (HSA)</h3>
+                    <p class="text-blue-100 text-sm">Đại học Quốc gia Hà Nội</p>
+                </div>
+                <div class="mt-6 flex justify-between items-end">
+                    <span class="text-xs bg-white/20 px-2 py-1 rounded">Tư duy định lượng & định tính</span>
+                    <i class="fas fa-arrow-right bg-white text-blue-600 w-8 h-8 rounded-full flex items-center justify-center shadow"></i>
+                </div>
+            </div>
+        </div>
+
+        <div onclick="openSubject('TSA')" class="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl p-6 text-white cursor-pointer shadow-lg hover:shadow-2xl hover:-translate-y-1 transition transform relative overflow-hidden group">
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full group-hover:scale-150 transition duration-700"></div>
+            <div class="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                    <div class="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-2xl font-bold">T</div>
+                    <h3 class="text-2xl font-bold mb-1">Thi ĐGTD (TSA)</h3>
+                    <p class="text-red-100 text-sm">Đại học Bách Khoa Hà Nội</p>
+                </div>
+                <div class="mt-6 flex justify-between items-end">
+                    <span class="text-xs bg-white/20 px-2 py-1 rounded">Toán, Đọc hiểu, Khoa học</span>
+                    <i class="fas fa-arrow-right bg-white text-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="view-ai-chat" class="hidden-section fade-in h-full flex flex-col bg-gray-50">
+    
+    <div class="bg-white p-4 border-b flex items-center justify-between shadow-sm flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-blue-500 to-purple-600 w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg">
+                <i class="fas fa-sparkles"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-gray-800 text-lg">Trợ Lý Học Tập AI</h2>
+                <p class="text-xs text-gray-500 flex items-center gap-1">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online • Powered by Gemini
+                </p>
+            </div>
+        </div>
+        <button onclick="clearAIChat()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
+            <i class="fas fa-trash-alt"></i> Xóa đoạn chat
+        </button>
+    </div>
+
+    <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+        <div class="flex items-start gap-3">
+            <div class="bg-white border border-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-purple-600 flex-shrink-0">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="bg-white border border-gray-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-gray-700 text-sm leading-relaxed">
+                Xin chào! Mình là trợ lý AI. Mình có thể giúp bạn giải bài tập, viết văn, dịch thuật hoặc giải thích kiến thức. Bạn cần giúp gì không?
+            </div>
+        </div>
+    </div>
+
+    <div class="p-4 bg-white border-t flex-shrink-0 relative">
+        
+        <div id="ai-image-preview" class="hidden absolute bottom-full left-0 w-full bg-white/90 backdrop-blur-sm p-3 border-t border-gray-200 flex items-center gap-3 animate-fade-in-up z-10">
+            <div class="relative group">
+                <img id="ai-img-display" src="" class="h-20 w-auto rounded-lg border border-gray-300 shadow-sm object-cover">
+                <button onclick="removeAIImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <span class="text-xs text-gray-500 italic">Đã chọn 1 ảnh</span>
+        </div>
+
+        <div class="relative flex items-end gap-2 max-w-4xl mx-auto">
+            <button onclick="document.getElementById('ai-image-input').click()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 w-10 h-10 rounded-full flex items-center justify-center transition shrink-0" title="Tải ảnh lên">
+                <i class="fas fa-image"></i>
+            </button>
+            <input type="file" id="ai-image-input" class="hidden" accept="image/*" onchange="handleAIImageSelect(this)">
+
+            <div class="flex-1 bg-gray-100 rounded-2xl border border-gray-200 focus-within:border-purple-500 focus-within:bg-white transition flex items-center p-1">
+                <textarea id="ai-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 px-3 py-2 text-sm text-gray-700 max-h-32 resize-none" placeholder="Hỏi gì đó về ảnh này... (Shift+Enter để xuống dòng)" onkeydown="handleAIEnter(event)"></textarea>
+            </div>
+
+            <button onclick="window.sendToGemini()" id="btn-send-ai" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition transform active:scale-90 shrink-0">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        
+        <p class="text-[10px] text-gray-400 text-center mt-2">AI có thể mắc lỗi. Hãy kiểm tra lại thông tin quan trọng.</p>
+    </div>
+</div>
                 <div id="view-chat" class="hidden-section fade-in h-full flex flex-col md:flex-row bg-white rounded-xl shadow-lg overflow-hidden border relative">
     
     <div id="chat-sidebar" class="w-full md:w-1/4 h-full border-b md:border-b-0 md:border-r bg-gray-50 flex flex-col transition-all">
