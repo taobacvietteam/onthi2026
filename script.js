@@ -1,7 +1,11 @@
 // --- SỬ DỤNG PHIÊN BẢN ỔN ĐỊNH 10.8.0 (ĐỂ CHẠY ĐƯỢC TRÊN MOBILE) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, getDocs, arrayUnion, arrayRemove, limit, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { 
+    getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, 
+    doc, setDoc, getDoc, updateDoc, getDocs, arrayUnion, arrayRemove, limit, 
+    deleteDoc, deleteField, increment // <--- Đã thêm increment vào đây
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Thêm dòng này để kiểm tra xem script đã chạy chưa (nếu thấy thông báo này trên đt là OK)
 console.log("Firebase Script Loaded v10.8.0");
@@ -16,7 +20,6 @@ const firebaseConfig = {
   appId: "1:1016775391844:web:40a7931e1c895e62a3bd71",
   measurementId: "G-ZY0L1XMMNE"
 };
-
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1111,6 +1114,8 @@ window.clearAIChat = function() {
 // ==========================================
 // --- ADMIN FEATURES (MODIFIED) ---
 // ==========================================
+// --- ACTIVITY LOG SYSTEM ---
+
 window.switchAdminTab = (tab) => {
     currentAdminTab = tab;
     document.getElementById('admin-tab-users').classList.toggle('hidden-section', tab !== 'users');
@@ -1119,50 +1124,87 @@ window.switchAdminTab = (tab) => {
 };
 
 window.loadAdminStats = () => {
-     getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory')).then(snap => {
-         const tbody = document.getElementById('admin-user-list'); tbody.innerHTML = '';
-         snap.forEach(d => {
-             const u = d.data();
-             const isSelf = d.id === currentUser.uid;
-             
-             // --- LOGIC TRẠNG THÁI ---
-             let statusBadge = '';
-             let actionBtn = '';
+    getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory')).then(snap => {
+        const tbody = document.getElementById('admin-user-list'); 
+        tbody.innerHTML = '';
+        
+        snap.forEach(d => {
+            const u = d.data();
+            const isSelf = d.id === currentUser.uid;
+            
+            // 1. LOGIC TRẠNG THÁI (Giữ nguyên của bạn)
+            let statusBadge = '';
+            let actionBtn = '';
+            if (u.status === 'pending') {
+                statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-[10px] font-bold animate-pulse">Chờ duyệt</span>';
+                actionBtn = `<button onclick="approveUser('${d.id}')" class="text-white bg-green-500 hover:bg-green-600 font-bold mr-2 text-[10px] px-2 py-1 rounded shadow">DUYỆT</button>`;
+            } else {
+                statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-[10px] font-bold">Active</span>';
+            }
+            if (u.isBlocked) statusBadge = '<span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-[10px] font-bold">Đã khóa</span>';
 
-             if (u.status === 'pending') {
-                 statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-bold animate-pulse">Chờ duyệt</span>';
-                 actionBtn = `<button onclick="approveUser('${d.id}')" class="text-white bg-green-500 hover:bg-green-600 font-bold mr-2 text-xs px-3 py-1 rounded shadow">DUYỆT</button>`;
-             } else {
-                 statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold">Active</span>';
-             }
+            // 2. LOGIC HIỂN THỊ QUÀ TẶNG (Phần thêm mới)
+            let spinInfo = '<span class="text-gray-400 text-[10px]">Chưa quay</span>';
+            if (u.luckySpins && u.luckySpins.length > 0) {
+                // Hiển thị danh sách quà tặng dạng nhãn nhỏ
+                spinInfo = u.luckySpins.map(item => 
+                    `<div class="bg-red-50 text-red-600 border border-red-100 rounded px-1 mb-1 text-[10px] font-medium">
+                        <i class="fas fa-gift mr-1"></i>${item.gift}
+                     </div>`
+                ).join('');
+            }
 
-             if (u.isBlocked) statusBadge = '<span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-bold">Đã khóa</span>';
+            // 3. NÚT RESET LƯỢT QUAY (Dành cho Admin)
+            let resetSpinBtn = !isSelf ? 
+                `<button onclick="resetUserSpin('${d.id}', '${u.displayName}')" class="text-[10px] bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600 mr-1" title="Reset về 0 lượt quay">
+                    <i class="fas fa-undo"></i>
+                 </button>` : '';
 
-             // Các nút chức năng khác
-             let roleBtn = '';
-             if (u.role === 'student') roleBtn = `<button onclick="assignLeader('${d.id}')" class="text-xs bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200 mr-1">Thăng Leader</button>`;
-             else if (u.role === 'leader') roleBtn = `<button onclick="demoteLeader('${d.id}')" class="text-xs bg-orange-100 text-orange-600 p-1 rounded hover:bg-orange-200 mr-1">Xuống Member</button>`;
-             
-             let deleteBtn = !isSelf ? `<button onclick="deleteUserSystem('${d.id}', '${u.displayName}')" class="text-xs bg-red-600 text-white p-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i></button>` : '';
+            // 4. Các nút chức năng cũ
+            let roleBtn = '';
+            if (u.role === 'student') roleBtn = `<button onclick="assignLeader('${d.id}')" class="text-[10px] bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200 mr-1">Thăng Leader</button>`;
+            else if (u.role === 'leader') roleBtn = `<button onclick="demoteLeader('${d.id}')" class="text-[10px] bg-orange-100 text-orange-600 p-1 rounded hover:bg-orange-200 mr-1">Xuống Member</button>`;
+            
+            let deleteBtn = !isSelf ? `<button onclick="deleteUserSystem('${d.id}', '${u.displayName}')" class="text-[10px] bg-red-600 text-white p-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i></button>` : '';
 
-             tbody.innerHTML += `
-                <tr class="border-b">
+            // RENDER DÒNG BẢNG
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-gray-50 transition">
                     <td class="p-3">
                         <div class="font-bold text-sm">${u.displayName}</div>
-                        <div class="text-xs text-gray-500">${u.email}</div>
+                        <div class="text-[10px] text-gray-500">${u.email}</div>
                     </td>
-                    <td class="p-3 text-sm"><span class="px-2 py-1 rounded bg-gray-100">${u.role}</span></td>
-                    <td class="p-3 text-sm">${statusBadge}</td>
-                    <td class="p-3 text-right">
+                    <td class="p-3 text-xs"><span class="px-2 py-1 rounded bg-gray-100 font-medium">${u.role.toUpperCase()}</span></td>
+                    <td class="p-3">${statusBadge}</td>
+                    <td class="p-3">${spinInfo}</td> <td class="p-3 text-right whitespace-nowrap">
                         ${!isSelf ? `
-                            ${actionBtn}
-                            <button onclick="toggleBlockUser('${d.id}', ${u.isBlocked})" class="text-xs bg-gray-200 p-1 rounded mr-1">${u.isBlocked?'Mở':'Khóa'}</button>
-                            ${roleBtn} ${deleteBtn}
-                        ` : '<span class="text-xs text-gray-400">Bạn</span>'}
+                            <div class="flex justify-end items-center">
+                                ${actionBtn}
+                                ${resetSpinBtn}
+                                <button onclick="toggleBlockUser('${d.id}', ${u.isBlocked})" class="text-[10px] bg-gray-200 p-1 rounded mr-1">${u.isBlocked?'Mở':'Khóa'}</button>
+                                ${roleBtn} ${deleteBtn}
+                            </div>
+                        ` : '<span class="text-xs text-gray-400 font-italic">Admin System</span>'}
                     </td>
                 </tr>`;
-         });
-     });
+        });
+    });
+};
+
+// Hàm bổ trợ Admin Reset lượt quay
+window.resetUserSpin = async (uid, name) => {
+    if(!confirm(`Bạn có chắc muốn xóa lịch sử và reset lượt quay cho ${name}?`)) return;
+    try {
+        // Xóa trong profile riêng
+        await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'lucky_spin'), { count: 0, history: [] });
+        // Xóa trong directory công khai
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', uid), { luckySpins: [] });
+        
+        toast(`Đã reset lượt quay cho ${name}`, "success");
+        loadAdminStats(); // Tải lại bảng
+    } catch(e) {
+        toast("Lỗi: " + e.message, "error");
+    }
 };
 
 // 5. Hàm duyệt user cho Admin
@@ -1209,62 +1251,235 @@ window.toggleBlockUser = async (uid, status) => {
 
 window.handleImageSelect = (input) => { const file = input.files[0]; if(file) { const reader = new FileReader(); reader.onload = e => { document.getElementById('img-prev-src').src = e.target.result; document.getElementById('image-preview').classList.remove('hidden'); }; reader.readAsDataURL(file); } };
 window.clearImage = () => { document.getElementById('image-preview').classList.add('hidden'); document.getElementById('img-prev-src').src = ''; };
-
-// GAME LOGIC
 // ==========================================
-// --- GAME LOGIC SYSTEM (REPLACED) ---
+// --- LUCKY SPIN SYSTEM (2 SPINS MAX) ---
 // ==========================================
 
-// 1. Biến quản lý vòng lặp chung (Chỉ khai báo 1 lần duy nhất ở đây)
-let activeGameInterval = null;
+let isWheelSpinning = false;
+// Danh sách quà tặng: Thứ tự index 0 sẽ tương ứng với góc 0-45 độ trong CSS
+const WHEEL_GIFTS = ["0","1", "2", "3", "4", "5", "6","7","8","9","10","11","12","13","14"];
 
-// 2. Hàm dọn dẹp game cũ (Chỉ khai báo 1 lần duy nhất ở đây)
-function clearActiveGame() {
-    if (activeGameInterval) clearInterval(activeGameInterval);
-    document.onkeydown = null; // Xóa sự kiện bàn phím
+function initWheelUI() {
+    const container = document.getElementById('wheel-labels');
+    if(!container) return;
+    
+    container.innerHTML = '';
+    const giftCount = WHEEL_GIFTS.length;
+    const angleStep = 360 / giftCount;
+
+    WHEEL_GIFTS.forEach((gift, i) => {
+        const label = document.createElement('div');
+        label.className = 'wheel-label';
+        
+        // Căn chỉnh nhãn quà: i * bước góc + (bước góc / 2) để vào giữa nan quạt
+        const rotation = i * angleStep + (angleStep / 2);
+        label.style.transform = `rotate(${rotation}deg)`;
+        
+        label.innerHTML = `<span>${gift}</span>`;
+        container.appendChild(label);
+    });
 }
 
-// 3. Hàm Bắt đầu Game (Đã sửa để gọi Dodge Game thay vì Snake)
+// Gọi hàm ngay khi tải trang
+document.addEventListener('DOMContentLoaded', initWheelUI);
+
+// ==========================================
+// --- LUCKY SPIN SYSTEM (1 SPIN MAX) ---
+// ==========================================
+
+// ... (Phần initWheelUI giữ nguyên không cần sửa) ...
+
+window.spinWheel = async () => {
+    if (isWheelSpinning) return;
+    if (!currentUser) return toast("Vui lòng đăng nhập để quay!", "error");
+
+    const spinDocRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'lucky_spin');
+    
+    try {
+        const snap = await getDoc(spinDocRef);
+        let spinData = snap.exists() ? snap.data() : { count: 0, history: [] };
+
+        // --- SỬA Ở ĐÂY ---
+        // Trước đây là (> 1) cho 2 lượt. Giờ sửa thành (>= 1) để chặn ngay khi đã quay 1 lần.
+        if (spinData.count >= 1) { 
+            toast("Vòng quay sẽ được mở trong thời gian quy định bắt đầu từ ngày 08/02/2026", "error");
+            document.getElementById('spin-result').innerText = "Hết lượt quay!";
+            return;
+        }
+        // ----------------
+
+        isWheelSpinning = true;
+        const wheelInner = document.getElementById('lucky-wheel-inner');
+        const btnSpin = document.getElementById('btn-spin-action');
+        
+        const giftCount = WHEEL_GIFTS.length;
+        const segmentDegree = 360 / giftCount;
+        const randomIndex = Math.floor(Math.random() * giftCount);
+        
+        // Logic quay giữ nguyên
+        const extraSpins = 3600; 
+        const giftAngle = randomIndex * segmentDegree + (segmentDegree / 2);
+        const finalRotation = extraSpins - giftAngle - 90; 
+
+        wheelInner.style.transition = "transform 4s cubic-bezier(0.15, 0, 0.15, 1)";
+        wheelInner.style.transform = `rotate(${finalRotation}deg)`;
+        if(btnSpin) btnSpin.disabled = true;
+
+        setTimeout(async () => {
+            const giftReceived = WHEEL_GIFTS[randomIndex];
+            
+            const currentHistory = spinData.history || [];
+            const newHistoryItem = {
+                gift: giftReceived,
+                time: new Date().toLocaleString('vi-VN'),
+                ts: Date.now()
+            };
+            const updatedHistory = [...currentHistory, newHistoryItem];
+
+            // Lưu dữ liệu vào Firebase
+            await setDoc(spinDocRef, {
+                count: spinData.count + 1, // Count sẽ tăng từ 0 lên 1
+                history: updatedHistory
+            }, { merge: true });
+
+            const publicUserRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid);
+            await updateDoc(publicUserRef, {
+                luckySpins: updatedHistory
+            });
+
+            const resultEl = document.getElementById('spin-result');
+            if(resultEl) resultEl.innerText = `Chúc mừng: ${giftReceived}!`;
+            toast(`Bạn nhận được: ${giftReceived}`, "success");
+            
+            isWheelSpinning = false;
+            // Nút quay vẫn disable hoặc enable tùy bạn, nhưng logic ở trên đã chặn nếu bấm lại
+            if(btnSpin) btnSpin.disabled = false; 
+            
+        }, 4000);
+
+    } catch (e) {
+        console.error("Spin error:", e);
+        toast("Có lỗi xảy ra, vui lòng thử lại!", "error");
+        isWheelSpinning = false;
+    }
+};
+// ==========================================
+// --- GAME LOGIC SYSTEM (FINAL FIXED) ---
+// ==========================================
+
+// 1. Biến quản lý toàn cục
+let activeGameInterval = null;
+let currentGameName = "Game"; 
+
+// 2. Hàm dọn dẹp game (Dừng vòng lặp & sự kiện)
+function clearActiveGame() {
+    if (activeGameInterval) {
+        clearInterval(activeGameInterval);
+        activeGameInterval = null;
+    }
+    document.onkeydown = null; // Gỡ bỏ sự kiện bàn phím
+}
+
+// 3. Hàm Xử lý KẾT THÚC GAME (Đã sửa lỗi crash)
+window.handleGameOver = async (score, gameName = currentGameName) => {
+    // Dọn dẹp lần cuối
+    clearActiveGame();
+
+    // Dùng setTimeout để UI hiển thị số 0s trước khi hiện popup alert
+    setTimeout(async () => {
+        alert(`KẾT THÚC GAME: ${gameName}\nĐiểm số của bạn: ${score}`);
+        
+        // Đóng giao diện game
+        window.closeGame();
+
+        // Lưu điểm vào Database (Chỉ lưu nếu có điểm)
+        if (score > 0 && currentUser) {
+            try {
+                // Cộng dồn điểm vào profile
+                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid);
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    const currentScore = userSnap.data().totalScore || 0;
+                    const newTotal = currentScore + score;
+
+                    await updateDoc(userRef, { 
+                        totalScore: newTotal,
+                        lastGamePlayed: serverTimestamp()
+                    });
+                    
+                    // Cập nhật profile gốc
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'info'), { 
+                        totalScore: newTotal 
+                    });
+
+                    // Ghi Nhật Ký Hoạt Động (Nếu có hàm log)
+                    if (typeof logActivity === 'function') {
+                        logActivity('CHƠI GAME', gameName, `Đạt ${score} điểm`);
+                    }
+                    
+                    // Thông báo nhỏ
+                    if(typeof toast === 'function') toast(`+${score} điểm tích lũy!`, 'success');
+                }
+            } catch (e) {
+                console.error("Lỗi lưu điểm:", e);
+            }
+        }
+    }, 100);
+};
+
+// 4. Hàm trung gian để gọi Game Over từ các game con
+window.finishActiveGame = (score) => {
+    clearActiveGame(); // Dừng ngay lập tức
+    window.handleGameOver(score, currentGameName);
+};
+
+// 5. Hàm Bắt đầu Game (Chỉ còn 3 game: Né, Toán, Lật hình)
 window.startGame = (gameType) => {
     const modal = document.getElementById('modal-game-play');
     const container = document.getElementById('game-canvas-container');
-    const mobileControls = document.getElementById('snake-mobile-controls'); // ID cũ trong HTML
+    const mobileControls = document.getElementById('snake-mobile-controls');
+    const titleDisplay = document.getElementById('game-title-play');
     
-    // Hiển thị Modal
+    // Reset giao diện
     modal.classList.remove('hidden');
     container.innerHTML = '';
     document.getElementById('game-score-play').innerText = "Score: 0";
-    
-    // Ẩn bộ điều khiển cũ ngoài HTML (vì Game mới tự vẽ nút rồi)
-    if(mobileControls) {
-        mobileControls.classList.add('hidden');
-        mobileControls.classList.remove('grid');
-    }
 
-    clearActiveGame(); // Dọn dẹp game cũ trước khi chạy
+    // Ẩn controls mobile cũ
+    if(mobileControls) mobileControls.classList.add('hidden');
 
-    // Điều hướng chọn game
+    clearActiveGame(); 
+
+    // Routing chọn game
     if (gameType === 'snake') { 
-        // Vẫn giữ ID là 'snake' để không phải sửa HTML, nhưng chạy hàm Dodge
+        currentGameName = "Né Thiên Thạch";
+        if(titleDisplay) titleDisplay.innerText = "NÉ THIÊN THẠCH";
         initDodgeGame(container); 
     } 
-    else if (gameType === 'math') initMathGame(container); 
-    else if (gameType === 'memory') initMemoryGame(container); 
-    else if (gameType === 'clicker') initClickerGame(container); 
-    else if (gameType === 'typer') initTyperGame(container);
+    else if (gameType === 'math') {
+        currentGameName = "Vua Toán Học";
+        if(titleDisplay) titleDisplay.innerText = "VUA TOÁN HỌC";
+        initMathGame(container); 
+    }
+    else if (gameType === 'memory') {
+        currentGameName = "Lật Hình";
+        if(titleDisplay) titleDisplay.innerText = "LẬT HÌNH";
+        initMemoryGame(container); 
+    }
 };
 
-// 4. Hàm Đóng Game
+// 6. Hàm Đóng Game
 window.closeGame = () => {
-    clearActiveGame(); // Dừng mọi thứ
+    clearActiveGame();
     document.getElementById('modal-game-play').classList.add('hidden');
-    // Ẩn các nút điều khiển nếu có
     const mobileControls = document.getElementById('snake-mobile-controls');
     if(mobileControls) mobileControls.classList.add('hidden');
 };
 
-// 5. Hàm xử lý nút bấm cũ (Để trống để không báo lỗi)
+// Placeholder tránh lỗi
 window.handleMobileControl = (key) => { return; };
+
 
 // ==========================================
 // --- GAME 1: DODGE (NÉ THIÊN THẠCH) ---
@@ -1298,10 +1513,10 @@ function initDodgeGame(container) {
     let score = 0;
     let hp = 3;
     let frameCount = 0;
-    let isGameOver = false;
+    let localGameOver = false;
 
-    const moveLeft = () => { if (player.x > 0 && !isGameOver) player.x -= 50; };
-    const moveRight = () => { if (player.x < 260 && !isGameOver) player.x += 50; };
+    const moveLeft = () => { if (player.x > 0 && !localGameOver) player.x -= 50; };
+    const moveRight = () => { if (player.x < 260 && !localGameOver) player.x += 50; };
 
     document.onkeydown = (e) => {
         if (e.key === 'ArrowLeft') moveLeft();
@@ -1312,7 +1527,7 @@ function initDodgeGame(container) {
     document.getElementById('btn-dodge-right').onclick = (e) => { e.preventDefault(); moveRight(); };
 
     activeGameInterval = setInterval(() => {
-        if (isGameOver) return;
+        if (localGameOver) return;
         frameCount++;
 
         let spawnRate = Math.max(15, 40 - Math.floor(score / 100) * 2); 
@@ -1328,11 +1543,13 @@ function initDodgeGame(container) {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Vẽ Player
         ctx.fillStyle = player.color;
         ctx.shadowBlur = 15; ctx.shadowColor = player.color;
         ctx.fillRect(player.x, player.y, player.w, player.h);
         ctx.shadowBlur = 0;
 
+        // Vẽ Enemy
         for (let i = 0; i < enemies.length; i++) {
             let e = enemies[i];
             e.y += 4 + Math.floor(score / 200);
@@ -1340,14 +1557,21 @@ function initDodgeGame(container) {
             ctx.fillStyle = e.color;
             ctx.fillRect(e.x, e.y, e.w, e.h);
 
+            // Va chạm
             if (player.x < e.x + e.w && player.x + player.w > e.x &&
                 player.y < e.y + e.h && player.y + player.h > e.y) {
                 
                 if (e.type === 'danger') {
                     hp--;
                     document.getElementById('dodge-hp').innerText = hp;
-                    canvas.classList.add('opacity-50'); setTimeout(()=>canvas.classList.remove('opacity-50'), 100);
-                    if (hp <= 0) endGame();
+                    canvas.classList.add('opacity-50'); 
+                    setTimeout(()=>canvas.classList.remove('opacity-50'), 100);
+                    
+                    if (hp <= 0) {
+                        localGameOver = true;
+                        window.finishActiveGame(score); 
+                        return;
+                    }
                 } else {
                     score += 50;
                 }
@@ -1364,40 +1588,43 @@ function initDodgeGame(container) {
         document.getElementById('dodge-level').innerText = 1 + Math.floor(score / 300);
 
     }, 30);
-
-    function endGame() {
-        isGameOver = true;
-        clearInterval(activeGameInterval);
-        document.onkeydown = null;
-        // GỌI HÀM LƯU ĐIỂM
-        if(typeof handleGameOver === 'function') handleGameOver(score);
-        else { alert(`Game Over! Score: ${score}`); closeGame(); }
-    }
 }
 
 // ==========================================
-// --- GAME 2: MATH (TOÁN HỌC) ---
+// --- GAME 2: MATH (VUA TOÁN HỌC) ---
 // ==========================================
 function initMathGame(container) {
-    clearActiveGame();
-    container.innerHTML = `<div class="text-white text-center w-full"><div id="math-q" class="text-5xl font-bold mb-8">5 + 5 = ?</div><input type="number" id="math-ans" class="text-black p-3 rounded text-center text-2xl w-32 focus:outline-none" autofocus><button id="btn-math-submit" class="block w-full bg-blue-500 mt-6 p-3 rounded font-bold hover:bg-blue-600 transition">Trả lời</button><div id="math-timer" class="mt-4 text-red-400 font-mono text-xl">Time: 30s</div></div>`;
+    container.innerHTML = `
+        <div class="text-white text-center w-full">
+            <div id="math-q" class="text-5xl font-bold mb-8">Ready?</div>
+            <input type="number" id="math-ans" class="text-black p-3 rounded text-center text-2xl w-32 focus:outline-none" autofocus placeholder="?">
+            <button id="btn-math-submit" class="block w-full bg-blue-500 mt-6 p-3 rounded font-bold hover:bg-blue-600 transition">Trả lời</button>
+            <div id="math-timer" class="mt-4 text-red-400 font-mono text-xl">Time: 30s</div>
+        </div>
+    `;
     
     let score = 0, timeLeft = 30, a, b, res;
     
     const nextQ = () => {
-        a = Math.floor(Math.random() * 20);
-        b = Math.floor(Math.random() * 20);
+        a = Math.floor(Math.random() * 20) + 1;
+        b = Math.floor(Math.random() * 20) + 1;
         res = a + b;
         document.getElementById('math-q').innerText = `${a} + ${b} = ?`;
-        document.getElementById('math-ans').value = '';
-        document.getElementById('math-ans').focus();
+        const input = document.getElementById('math-ans');
+        input.value = '';
+        input.focus();
     };
     
     const check = () => {
-        if (parseInt(document.getElementById('math-ans').value) === res) {
+        const val = parseInt(document.getElementById('math-ans').value);
+        if (val === res) {
             score += 10;
             document.getElementById('game-score-play').innerText = `Score: ${score}`;
             nextQ();
+        } else {
+            // Hiệu ứng sai
+            document.getElementById('math-ans').classList.add('bg-red-200');
+            setTimeout(() => document.getElementById('math-ans').classList.remove('bg-red-200'), 200);
         }
     };
     
@@ -1406,14 +1633,18 @@ function initMathGame(container) {
 
     nextQ();
     
+    // --- TIMER FIX ---
     activeGameInterval = setInterval(() => {
         timeLeft--;
-        document.getElementById('math-timer').innerText = `Time: ${timeLeft}s`;
+        const tElem = document.getElementById('math-timer');
+        if(tElem) tElem.innerText = `Time: ${timeLeft}s`;
+        
         if (timeLeft <= 0) {
+            // Dừng interval ngay lập tức
             clearInterval(activeGameInterval);
-            // GỌI HÀM LƯU ĐIỂM
-            if(typeof handleGameOver === 'function') handleGameOver(score);
-            else { alert(`Hết giờ! Điểm: ${score}`); closeGame(); }
+            activeGameInterval = null;
+            // Gọi kết thúc
+            window.finishActiveGame(score);
         }
     }, 1000);
 }
@@ -1422,7 +1653,6 @@ function initMathGame(container) {
 // --- GAME 3: MEMORY (LẬT HÌNH) ---
 // ==========================================
 function initMemoryGame(container) {
-    clearActiveGame();
     const icons = ['🍎', '🍌', '🍒', '🍇', '🍉', '🍊', '🍍', '🥝'];
     let cards = [...icons, ...icons].sort(() => 0.5 - Math.random());
     let flipped = [], matched = 0, score = 0;
@@ -1438,6 +1668,7 @@ function initMemoryGame(container) {
         card.onclick = () => {
             if (card.classList.contains('bg-white') || flipped.length >= 2) return;
             
+            // Lật thẻ
             card.classList.remove('bg-blue-200');
             card.classList.add('bg-white', 'border-2', 'border-blue-500');
             card.querySelector('span').classList.remove('opacity-0');
@@ -1446,18 +1677,19 @@ function initMemoryGame(container) {
             
             if (flipped.length === 2) {
                 if (flipped[0].icon === flipped[1].icon) {
+                    // Đúng cặp
                     matched++;
                     score += 20;
                     document.getElementById('game-score-play').innerText = `Score: ${score}`;
                     flipped = [];
+                    
                     if (matched === icons.length) {
                         setTimeout(() => {
-                            // GỌI HÀM LƯU ĐIỂM
-                            if(typeof handleGameOver === 'function') handleGameOver(score);
-                            else { alert(`Thắng! Điểm: ${score}`); closeGame(); }
+                            window.finishActiveGame(score); 
                         }, 500);
                     }
                 } else {
+                    // Sai cặp
                     setTimeout(() => {
                         flipped.forEach(f => {
                             f.card.classList.add('bg-blue-200');
@@ -1472,88 +1704,43 @@ function initMemoryGame(container) {
         grid.appendChild(card);
     });
 }
-
-// ==========================================
-// --- GAME 4: CLICKER (BẤM NHANH) ---
-// ==========================================
-function initClickerGame(container) {
-    clearActiveGame();
-    container.innerHTML = `<div class="text-center w-full"><button id="btn-clicker" class="bg-red-500 active:bg-red-700 text-white rounded-full w-40 h-40 text-2xl font-bold shadow-lg transform transition active:scale-95 touch-manipulation">CLICK ME</button><div id="clicker-timer" class="mt-8 text-yellow-400 text-xl font-mono">10.0s</div></div>`;
-    
-    let clicks = 0, time = 10.0, active = true;
-    
-    document.getElementById('btn-clicker').onclick = () => {
-        if (active) {
-            clicks++;
-            document.getElementById('game-score-play').innerText = `Clicks: ${clicks}`;
-        }
-    };
-    
-    activeGameInterval = setInterval(() => {
-        time -= 0.1;
-        document.getElementById('clicker-timer').innerText = Math.max(0, time).toFixed(1) + 's';
-        if (time <= 0) {
-            active = false;
-            clearInterval(activeGameInterval);
-            // GỌI HÀM LƯU ĐIỂM
-            if(typeof handleGameOver === 'function') handleGameOver(clicks); // Lưu số clicks làm điểm
-            else { alert(`Hết giờ! ${clicks} clicks.`); closeGame(); }
-        }
-    }, 100);
-}
-
-// ==========================================
-// --- GAME 5: TYPER (GÕ PHÍM) ---
-// ==========================================
-function initTyperGame(container) {
-    clearActiveGame();
-    const words = ['code', 'bug', 'fix', 'api', 'app', 'web', 'git', 'css', 'js', 'html', 'react', 'node', 'java'];
-    let currentWord = '', score = 0, time = 30;
-    
-    container.innerHTML = `<div class="text-center w-full"><div id="typer-word" class="text-4xl font-bold text-green-400 mb-6 bg-gray-900 p-4 rounded select-none">START</div><input type="text" id="typer-input" class="w-full max-w-xs p-3 rounded text-center text-xl uppercase" placeholder="Gõ từ trên..." autocomplete="off"><div id="typer-timer" class="mt-4 text-gray-400">Time: 30s</div></div>`;
-    
-    const next = () => {
-        currentWord = words[Math.floor(Math.random() * words.length)];
-        document.getElementById('typer-word').innerText = currentWord.toUpperCase();
-        document.getElementById('typer-input').value = '';
-    };
-    next();
-    
-    const input = document.getElementById('typer-input');
-    input.focus();
-    input.oninput = () => {
-        if (input.value.toLowerCase() === currentWord) {
-            score++;
-            document.getElementById('game-score-play').innerText = `Words: ${score}`;
-            next();
-        }
-    };
-    
-    activeGameInterval = setInterval(() => {
-        time--;
-        document.getElementById('typer-timer').innerText = `Time: ${time}s`;
-        if (time <= 0) {
-            clearInterval(activeGameInterval);
-            // GỌI HÀM LƯU ĐIỂM
-            if(typeof handleGameOver === 'function') handleGameOver(score);
-            else { alert(`Hết giờ! ${score} từ.`); closeGame(); }
-        }
-    }, 1000);
-}
-
 window.loadActivityLogs = () => {
+    // Lấy 50 hành động mới nhất
     onSnapshot(query(collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity'), orderBy('ts', 'desc'), limit(50)), snap => {
         const tbody = document.getElementById('admin-log-list');
         if (!tbody) return;
+        
+        if (snap.empty) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Chưa có dữ liệu hoạt động.</td></tr>';
+            return;
+        }
+
         tbody.innerHTML = '';
         snap.forEach(d => {
             const l = d.data();
+            const timeStr = l.ts ? new Date(l.ts.toDate()).toLocaleString('vi-VN') : 'Vừa xong';
+            
+            // Tạo màu badge cho loại hành động
+            let badgeColor = 'bg-gray-100 text-gray-600';
+            if(l.action.includes('VIDEO')) badgeColor = 'bg-blue-100 text-blue-600';
+            if(l.action.includes('GAME')) badgeColor = 'bg-purple-100 text-purple-600';
+            if(l.action.includes('ĐỀ') || l.action.includes('THI')) badgeColor = 'bg-red-100 text-red-600';
+
             tbody.innerHTML += `
-                <tr class="border-b text-xs hover:bg-gray-100 transition">
-                    <td class="p-3 text-gray-500">${l.ts ? new Date(l.ts.toDate()).toLocaleTimeString() : ''}</td>
-                    <td class="p-3 font-bold text-gray-700">${l.name}</td>
-                    <td class="p-3 text-blue-600 font-medium">${l.action}</td>
-                    <td class="p-3 text-gray-600">${l.details}</td>
+                <tr class="border-b text-sm hover:bg-gray-50 transition">
+                    <td class="p-3 text-gray-500 whitespace-nowrap text-xs">${timeStr}</td>
+                    
+                    <td class="p-3">
+                        <div class="font-bold text-gray-800">${l.userName}</div>
+                        <div class="text-[10px] text-gray-400">${l.email}</div>
+                    </td>
+                    
+                    <td class="p-3">
+                        <span class="${badgeColor} px-2 py-1 rounded text-[10px] font-bold mr-2">${l.action}</span>
+                        <span class="font-medium text-gray-700">${l.name}</span>
+                    </td>
+                    
+                    <td class="p-3 text-gray-600 font-mono text-xs">${l.details}</td>
                 </tr>`;
         });
     });
@@ -1561,7 +1748,7 @@ window.loadActivityLogs = () => {
 // ==========================================
 // --- 1. DATA LOADER & LINK PROCESSOR ---
 // ==========================================
-
+let currentVideoTitle = ''; // Biến lưu tên video đang xem
 const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1FBbveBD1RpIAN3-Tc5gE2Iy0UHgEFMWNfF7qrU8gjlM/export?format=csv';
 
 let mockSubjectData = {
@@ -1633,7 +1820,81 @@ function processVideoLink(url) {
 
     return { type: 'other', src: url };
 }
+window.handleNavReal = (viewId) => {
+    // 1. Ẩn tất cả các màn hình (view)
+    document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
+    
+    // 2. Hiện màn hình được chọn
+    if (viewId === 'ai-chat') {
+        document.getElementById('view-ai-chat').classList.remove('hidden-section');
+    } else if (viewId === 'hsa') {
+        document.getElementById('view-hsa').classList.remove('hidden-section');
+    } else {
+        const target = document.getElementById(`view-${viewId}`);
+        if(target) target.classList.remove('hidden-section');
+    }
 
+    // 3. Tải dữ liệu tương ứng
+    if (viewId === 'groups') loadGroups();
+    if (viewId === 'admin') loadAdminStats();
+    if (viewId === 'games') loadLeaderboard();
+    if (viewId === 'dashboard') {
+        // Mặc định load Top Video
+        loadLearningLeaderboard('video'); 
+    }
+    // 4. Reset Chat title nếu cần
+    if (viewId === 'chat') {
+        if (!currentChatTarget) switchChatTab('global');
+    }
+
+    // --- MỚI THÊM: GHI LOG ---
+    // Mapping tên tiếng Việt cho đẹp
+    const mapNames = {
+        'dashboard': 'Trang chủ', 'subjects': 'Kho Môn Học', 'groups': 'Nhóm Học Tập',
+        'chat': 'Chat/Nhắn tin', 'ai-chat': 'Trợ lý AI', 'games': 'Khu Giải Trí',
+        'lucky-spin': 'Vòng Quay', 'cinema': 'Rạp Phim', 'hsa': 'Luyện thi HSA/TSA'
+    };
+    logActivity('TRUY CẬP', mapNames[viewId] || viewId, 'Mở tab hệ thống');
+};
+// --- HỆ THỐNG GHI LOG & THỐNG KÊ HỌC TẬP (PHIÊN BẢN CUỐI CÙNG) ---
+async function logActivity(actionType, contentName, detailInfo) {
+    if (!currentUser) return;
+
+    // 1. Ghi log chi tiết (để Admin đọc)
+    const logRef = collection(db, 'artifacts', APP_ID, 'private', 'logs', 'activity');
+    try {
+        await addDoc(logRef, {
+            uid: currentUser.uid,
+            userName: userProfile.displayName || "User",
+            email: userProfile.email,
+            ts: serverTimestamp(),
+            action: actionType,
+            name: contentName,
+            details: detailInfo
+        });
+
+        // 2. CẬP NHẬT THỐNG KÊ CHO BẢNG XẾP HẠNG (để hiện ngoài Dashboard)
+        const userPublicRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid);
+        
+        // Nếu là xem Video -> Tăng biến studyStats.videoCount
+        if (actionType === 'XEM VIDEO' || actionType.includes('VIDEO')) {
+            await updateDoc(userPublicRef, {
+                "studyStats.videoCount": increment(1),
+                "studyStats.lastActive": serverTimestamp()
+            });
+        }
+        // Nếu là làm Đề/Tài liệu -> Tăng biến studyStats.examCount
+        else if (actionType === 'TÀI LIỆU' || actionType.includes('ĐỀ')) {
+            await updateDoc(userPublicRef, {
+                "studyStats.examCount": increment(1),
+                "studyStats.lastActive": serverTimestamp()
+            });
+        }
+
+    } catch (e) {
+        console.error("Lỗi ghi log/thống kê:", e);
+    }
+}
 async function loadDataFromSheet() {
     try {
         console.log("Đang tải dữ liệu từ Sheet...");
@@ -1708,7 +1969,7 @@ window.openSubject = (subj) => {
             videoContainer.innerHTML = data.videos.map((v, i) => {
                 const type = v.data ? v.data.type : 'youtube';
                 const src = v.data ? v.data.src : v.id; // Fallback cho data cũ
-
+                
                 let icon = '<i class="fas fa-play"></i>';
                 let colorClass = 'bg-red-100 text-red-600';
                 
@@ -1724,7 +1985,7 @@ window.openSubject = (subj) => {
                             <span class="text-[10px] text-gray-400 uppercase tracking-wider">${type}</span>
                         </div>
                     </div>
-                    <button onclick="playUniversalVideo('${type}', '${src}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 shadow active:scale-95 transition">Xem</button>
+                    <button onclick="playUniversalVideo('${type}', '${src}', '${v.t.replace(/'/g, "\\'")}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 shadow active:scale-95 transition">Xem</button>
                 </div>`;
             }).join('');
         } else {
@@ -1786,11 +2047,15 @@ window.switchSubjectTab = (tab) => {
     });
 };
 
-// Hàm mở Modal Embed (Tài liệu/Đề thi)
 window.openEmbedModal = (url, title) => {
     document.getElementById('embed-title').innerText = title;
     document.getElementById('embed-frame').src = url;
     document.getElementById('embed-modal').classList.remove('hidden');
+
+    // --- MỚI THÊM ---
+    // Phân biệt là Đề thi hay Tài liệu dựa vào context hoặc URL
+    // Ở đây ta gọi chung là "TÀI LIỆU/ĐỀ"
+    logActivity('XEM TÀI LIỆU', title, 'Đã mở xem/làm bài');
 };
 window.closeEmbedModal = () => {
     document.getElementById('embed-modal').classList.add('hidden');
@@ -1850,9 +2115,26 @@ window.playVideo = (id) => {
     window.playUniversalVideo('youtube', id);
 };
 
-// Hàm đóng Modal Video
 window.closeVideoModal = () => {
     document.getElementById('video-modal').classList.add('hidden');
+    
+    // --- MỚI THÊM: Tính % và Ghi Log ---
+    if (player && typeof player.getDuration === 'function' && typeof player.getCurrentTime === 'function') {
+        const dur = player.getDuration();
+        const cur = player.getCurrentTime();
+        if (dur > 0) {
+            const percent = Math.round((cur / dur) * 100);
+            // Chỉ log nếu xem > 5% để tránh spam
+            if (percent > 5) {
+                logActivity('XEM VIDEO', currentVideoTitle, `Đã xem: ${percent}%`);
+            }
+        }
+    } else {
+        // Trường hợp video TikTok/Facebook (không lấy được API time)
+        logActivity('XEM VIDEO', currentVideoTitle, 'Đã mở xem (Embed)');
+    }
+    // ------------------------------------
+
     if(player && typeof player.stopVideo === 'function') player.stopVideo();
     
     const genericFrame = document.getElementById('generic-player');
@@ -2156,44 +2438,146 @@ window.loadLeaderboard = async () => {
         tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
     }
 };
+/// Hàm tải BXH Chăm Chỉ (Dashboard)
+window.loadLearningLeaderboard = async (type = 'video') => {
+    const container = document.getElementById('dashboard-leaderboard-list');
+    const btnVideo = document.getElementById('tab-rank-video');
+    const btnExam = document.getElementById('tab-rank-exam');
+    
+    if (!container) return;
 
-// 2. Hàm lưu điểm cộng dồn vào Profile User
-window.handleGameOver = async (score) => {
-    // Dừng game loop
-    if (gameInterval) clearInterval(gameInterval);
-    document.removeEventListener('keydown', handleSnakeKey); // Xóa sự kiện nếu là game Rắn
+    // Cập nhật UI Tabs
+    if (type === 'video') {
+        btnVideo.className = "px-3 py-1 text-xs font-bold rounded-md transition bg-white text-blue-600 shadow-sm";
+        btnExam.className = "px-3 py-1 text-xs font-bold rounded-md transition text-gray-500 hover:text-purple-600";
+    } else {
+        btnVideo.className = "px-3 py-1 text-xs font-bold rounded-md transition text-gray-500 hover:text-blue-600";
+        btnExam.className = "px-3 py-1 text-xs font-bold rounded-md transition bg-white text-purple-600 shadow-sm";
+    }
 
-    // Thông báo
-    alert(`Kết thúc game! Bạn đạt được: ${score} điểm.`);
-    closeGame();
-
-    if (score <= 0) return; // Không lưu nếu 0 điểm
+    container.innerHTML = '<div class="text-center text-xs text-gray-400 py-4"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
 
     try {
-        const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid);
-        const userSnap = await getDoc(userRef);
+        // Lấy danh sách user
+        const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory'), limit(50));
+        const snap = await getDocs(q);
         
-        if (userSnap.exists()) {
-            const currentScore = userSnap.data().totalScore || 0;
-            const newTotal = currentScore + score;
-
-            // Cập nhật điểm mới vào Firestore
-            await updateDoc(userRef, { 
-                totalScore: newTotal,
-                lastGamePlayed: serverTimestamp()
-            });
+        let users = [];
+        snap.forEach(d => {
+            const u = d.data();
+            // Lấy dữ liệu thống kê (nếu chưa có thì là 0)
+            const stats = u.studyStats || { videoCount: 0, examCount: 0 };
             
-            // Cập nhật cả ở profile gốc
-            await updateDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'info'), { 
-                totalScore: newTotal 
-            });
+            // Chọn chỉ số dựa trên Tab
+            const count = type === 'video' ? (stats.videoCount || 0) : (stats.examCount || 0);
+            
+            if (count > 0) {
+                users.push({ ...u, scoreDisplay: count });
+            }
+        });
 
-            toast(`+${score} điểm tích lũy! Tổng: ${newTotal}`, 'success');
+        // Sắp xếp: Cao xuống thấp
+        users.sort((a, b) => b.scoreDisplay - a.scoreDisplay);
+        
+        // Lấy Top 5
+        const top5 = users.slice(0, 5);
+
+        if (top5.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-xs text-gray-400 py-4">
+                    <i class="fas fa-ghost text-xl mb-1"></i><br>
+                    Chưa ai ${type === 'video' ? 'xem video' : 'làm đề'} nào.
+                </div>`;
+            return;
         }
+
+        // Render
+        const themeColor = type === 'video' ? 'text-blue-600' : 'text-purple-600';
+        const unitText = type === 'video' ? 'bài' : 'đề';
+
+        container.innerHTML = top5.map((u, i) => {
+            let rankStyle = "bg-gray-100 text-gray-500";
+            let rowEffect = "";
+            
+            if (i === 0) { rankStyle = "bg-yellow-100 text-yellow-600"; rowEffect = "border-l-2 border-yellow-400 bg-yellow-50/30"; }
+            else if (i === 1) rankStyle = "bg-gray-200 text-gray-600";
+            else if (i === 2) rankStyle = "bg-orange-100 text-orange-600";
+
+            return `
+                <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition ${rowEffect}">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold shrink-0 ${rankStyle}">
+                            ${i + 1}
+                        </div>
+                        <img src="${u.avatar}" class="w-8 h-8 rounded-full border border-gray-100 bg-gray-200 object-cover shrink-0">
+                        <div class="flex flex-col overflow-hidden">
+                            <span class="font-bold text-sm text-gray-800 truncate">${u.displayName}</span>
+                            <span class="text-[10px] text-gray-500 truncate">
+                                ${type === 'video' ? 'Chăm chỉ xem bài' : 'Siêu luyện đề'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="font-bold ${themeColor} text-sm whitespace-nowrap">
+                        ${u.scoreDisplay} <span class="text-[10px] font-normal text-gray-400">${unitText}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
     } catch (e) {
-        console.error("Lỗi lưu điểm:", e);
+        console.error(e);
+        container.innerHTML = '<p class="text-center text-xs text-red-400">Lỗi tải bảng xếp hạng.</p>';
     }
 };
+// --- SỬA LỖI GAME OVER (Thay thế hàm cũ đang bị lỗi) ---
+window.handleGameOver = async (score, gameName = currentGameName) => {
+    // 1. Dọn dẹp game
+    // Hàm clearActiveGame() đã xử lý việc tắt bàn phím (document.onkeydown = null)
+    // NÊN KHÔNG CẦN gọi removeEventListener cho handleSnakeKey nữa (xóa dòng gây lỗi đó đi)
+    clearActiveGame();
+
+    // 2. Hiển thị thông báo và đóng game
+    // Dùng setTimeout để UI kịp cập nhật số 0s trước khi hiện Alert
+    setTimeout(async () => {
+        alert(`KẾT THÚC GAME: ${gameName}\nĐiểm số của bạn: ${score}`);
+        
+        window.closeGame();
+
+        // 3. Lưu điểm vào Firebase (Chỉ lưu nếu có điểm và đã đăng nhập)
+        if (score > 0 && currentUser) {
+            try {
+                // Cập nhật điểm công khai
+                const publicRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users_directory', currentUser.uid);
+                const userSnap = await getDoc(publicRef);
+                
+                if (userSnap.exists()) {
+                    const currentScore = userSnap.data().totalScore || 0;
+                    const newTotal = currentScore + score;
+
+                    await updateDoc(publicRef, { 
+                        totalScore: newTotal,
+                        lastGamePlayed: serverTimestamp()
+                    });
+                    
+                    // Cập nhật profile cá nhân
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'info'), { 
+                        totalScore: newTotal 
+                    });
+
+                    // Ghi log hoạt động
+                    if (typeof logActivity === 'function') {
+                        logActivity('CHƠI GAME', gameName, `Đạt ${score} điểm`);
+                    }
+                    
+                    if(typeof toast === 'function') toast(`+${score} điểm tích lũy!`, 'success');
+                }
+            } catch (e) {
+                console.error("Lỗi lưu điểm:", e);
+            }
+        }
+    }, 100);
+};
+
 /* =========================================
    FIXED MUSIC PLAYER (FINAL VERSION)
    ========================================= */
@@ -2421,7 +2805,7 @@ window.handleGameOver = async (score) => {
     loadSong(songIndex);
     // Đồng bộ UI với trạng thái thực tế của audio (đề phòng audio đang chạy từ trang trước)
     updatePlayButtonUI(!audio.paused);
-
+    // Thêm vào cuối file script.js
+    window.spinWheel = spinWheel;
 })();
-
 
