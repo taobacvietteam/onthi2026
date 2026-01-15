@@ -72,6 +72,67 @@
         .safe-area-pb {
             padding-bottom: env(safe-area-inset-bottom);
         }
+        /* --- TET LUCKY SPIN CSS --- */
+#lucky-wheel-inner {
+    position: relative;
+    /* Hiệu ứng bóng đổ tỏa sáng màu vàng */
+    box-shadow: 0 0 0 8px #B71C1C, 0 0 20px rgba(255, 215, 0, 0.8); 
+}
+
+/* Trang trí các múi màu (nếu không dùng JS Canvas) */
+.wheel-segment-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0 0;
+    /* Cần JS tính toán góc xoay cho từng chữ */
+}
+
+/* Nút Quay phong cách Tết */
+#btn-spin-action {
+    background-size: 200% auto;
+    animation: shine 3s linear infinite;
+}
+@keyframes shine {
+    to {
+        background-position: 200% center;
+    }
+}
+
+/* Hiệu ứng pháo giấy/hoa mai rơi (Optional class để JS kích hoạt) */
+.confetti-fall {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #FFD700;
+    animation: fall linear forwards;
+}
+
+@keyframes fall {
+    to {
+        transform: translateY(100vh) rotate(720deg);
+    }
+}
+#wheel-labels .wheel-label {
+    position: absolute;
+    width: 50%; /* Nằm từ tâm ra rìa */
+    height: 40px;
+    top: calc(50% - 20px);
+    left: 50%;
+    transform-origin: left center; /* Xoay từ tâm vòng tròn */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* Đẩy chữ ra rìa ngoài */
+    font-weight: 800;
+    color: #7f1d1d; /* Đỏ đậm */
+    text-transform: uppercase;
+    font-size: 10px; /* Giảm xuống 10px cho 15 ô */
+    padding-right: 15px;
+}
+
+@media (min-width: 768px) {
+    #wheel-labels .wheel-label { font-size: 11px; padding-right: 30px; }
+}
     </style>
 </head>
 <body class="bg-gray-50 font-sans text-gray-800 h-safe-screen flex flex-col overflow-hidden text-sm md:text-base">
@@ -143,7 +204,12 @@
         <i class="fas fa-gamepad w-6 text-center group-hover:scale-110 transition-transform"></i> 
         <span class="menu-text ml-2 font-medium">Giải Trí</span>
     </button>
-
+<button onclick="nav('lucky-spin')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-gray-600 hover:text-red-600 transition flex items-center group relative overflow-hidden">
+    <div class="absolute inset-0 bg-yellow-100 opacity-0 group-hover:opacity-20 transition"></div>
+    <i class="fas fa-gift w-6 text-center text-red-500 group-hover:scale-110 group-hover:rotate-12 transition-transform"></i> 
+    <span class="menu-text ml-2 font-bold text-red-600">Vòng Quay Tết</span>
+    <span class="ml-auto bg-yellow-400 text-red-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow border border-yellow-200 animate-pulse">LÌ XÌ</span>
+</button>
     <button onclick="toggleMusicPlayer()" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center justify-between group">
         <div class="flex items-center">
             <i class="fas fa-music w-6 text-center group-hover:scale-110 transition-transform"></i> 
@@ -204,45 +270,73 @@
             <div id="content-container" class="flex-1 overflow-y-auto p-3 md:p-6 lg:p-8 relative w-full custom-scrollbar">
                 
                 <div id="view-dashboard" class="fade-in space-y-4 md:space-y-6">
-                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
-                        <div class="relative z-10">
-                            <h2 class="text-2xl md:text-3xl font-bold mb-2">Chào mừng trở lại!</h2>
-                            <p class="opacity-90 text-sm md:text-base">Hôm nay bạn muốn ôn tập môn gì hay giải trí một chút?</p>
-                        </div>
-                        <i class="fas fa-rocket absolute -bottom-5 -right-5 text-8xl md:text-9xl opacity-20 transform rotate-12"></i>
-                    </div>
-                    
-                    <h3 class="font-bold text-lg md:text-xl text-gray-700 border-l-4 border-indigo-500 pl-3">Tiến Độ Tổng Quan</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="font-bold text-gray-600">Toán</span>
-                                <i class="fas fa-calculator text-blue-500 bg-blue-100 p-2 rounded-lg"></i>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div id="dash-prog-toan" class="bg-blue-500 h-2 rounded-full" style="width: 30%"></div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="font-bold text-gray-600">Văn</span>
-                                <i class="fas fa-pen-nib text-pink-500 bg-pink-100 p-2 rounded-lg"></i>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div id="dash-prog-van" class="bg-pink-500 h-2 rounded-full" style="width: 45%"></div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="font-bold text-gray-600">Anh</span>
-                                <i class="fas fa-language text-yellow-500 bg-yellow-100 p-2 rounded-lg"></i>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div id="dash-prog-anh" class="bg-yellow-500 h-2 rounded-full" style="width: 60%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+        <div class="relative z-10">
+            <h2 class="text-2xl md:text-3xl font-bold mb-2">Chào mừng trở lại!</h2>
+            <p class="opacity-90 text-sm md:text-base">Hôm nay bạn muốn ôn tập môn gì hay giải trí một chút?</p>
+        </div>
+        <i class="fas fa-rocket absolute -bottom-5 -right-5 text-8xl md:text-9xl opacity-20 transform rotate-12"></i>
+    </div>
+
+    <div class="bg-white border border-blue-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+    <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
+        <i class="fas fa-book-reader text-6xl text-blue-600"></i>
+    </div>
+    
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 relative z-10 gap-2">
+        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+            <span class="bg-blue-100 text-blue-600 p-1.5 rounded-lg shadow-sm"><i class="fas fa-medal"></i></span>
+            BXH Chăm Chỉ
+        </h3>
+        
+        <div class="flex bg-gray-100 p-1 rounded-lg">
+            <button onclick="loadLearningLeaderboard('video')" id="tab-rank-video" class="px-3 py-1 text-xs font-bold rounded-md transition bg-white text-blue-600 shadow-sm">
+                <i class="fas fa-play-circle"></i> Video
+            </button>
+            <button onclick="loadLearningLeaderboard('exam')" id="tab-rank-exam" class="px-3 py-1 text-xs font-bold rounded-md transition text-gray-500 hover:text-purple-600">
+                <i class="fas fa-file-alt"></i> Đề Thi
+            </button>
+        </div>
+    </div>
+     
+        <div id="dashboard-leaderboard-list" class="space-y-2 relative z-10 min-h-[100px]">
+            <div class="text-center text-xs text-gray-400 py-4 flex flex-col items-center">
+                <i class="fas fa-spinner fa-spin mb-2 text-indigo-400 text-lg"></i> 
+                Đang tải dữ liệu thi đua...
+            </div>
+        </div>
+    </div>
+    <h3 class="font-bold text-lg md:text-xl text-gray-700 border-l-4 border-indigo-500 pl-3">Tiến Độ Tổng Quan</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <span class="font-bold text-gray-600">Toán</span>
+                <i class="fas fa-calculator text-blue-500 bg-blue-100 p-2 rounded-lg"></i>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="dash-prog-toan" class="bg-blue-500 h-2 rounded-full" style="width: 30%"></div>
+            </div>
+        </div>
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <span class="font-bold text-gray-600">Văn</span>
+                <i class="fas fa-pen-nib text-pink-500 bg-pink-100 p-2 rounded-lg"></i>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="dash-prog-van" class="bg-pink-500 h-2 rounded-full" style="width: 45%"></div>
+            </div>
+        </div>
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <span class="font-bold text-gray-600">Anh</span>
+                <i class="fas fa-language text-yellow-500 bg-yellow-100 p-2 rounded-lg"></i>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="dash-prog-anh" class="bg-yellow-500 h-2 rounded-full" style="width: 60%"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <div id="view-subjects" class="hidden-section fade-in">
                     <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6">Kho Môn Học</h2>
@@ -479,14 +573,38 @@
         </div>
     </div>
 </div>
-
                 <div id="view-games" class="hidden-section fade-in pb-20">
                     <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-purple-600">Giải Trí & Xả Stress</h2>
                     
-                    <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mb-6">
-                        <h3 class="font-bold text-yellow-800 text-sm md:text-base"><i class="fas fa-trophy text-yellow-600"></i> Bảng Xếp Hạng</h3>
-                        <div id="game-leaderboard-top" class="mt-2 text-xs md:text-sm text-gray-700">Chưa có dữ liệu.</div>
-                    </div>
+                    <div class="bg-white border border-yellow-300 p-4 rounded-xl mb-6 shadow-md relative overflow-hidden">
+    <div class="absolute top-0 right-0 p-4 opacity-10">
+        <i class="fas fa-crown text-6xl text-yellow-500"></i>
+    </div>
+
+    <h3 class="font-bold text-yellow-700 text-lg mb-3 flex items-center relative z-10">
+        <i class="fas fa-trophy text-yellow-500 mr-2 text-xl animate-bounce"></i> 
+        Bảng vàng vinh danh
+    </h3>
+
+    <div class="overflow-x-auto relative z-10 bg-white/50 rounded-lg backdrop-blur-sm">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800">
+                <tr>
+                    <th class="p-3 text-center rounded-l-lg">Hạng</th>
+                    <th class="p-3">Học viên</th>
+                    <th class="p-3 text-center rounded-r-lg">Điểm Tích Lũy</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-list">
+                <tr>
+                    <td colspan="3" class="p-4 text-center text-gray-500">
+                        <i class="fas fa-spinner fa-spin mr-2"></i> Đang tải bảng xếp hạng...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                         <div class="group relative bg-white rounded-2xl p-5 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 overflow-hidden">
