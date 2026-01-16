@@ -812,17 +812,17 @@ window.endMeeting = () => {
     }
 };
 // ==========================================
-// --- GEMINI AI CHAT SYSTEM (OPTIMIZED) ---
+// --- GEMINI AI CHAT SYSTEM (CONNECTED TO WORKER) ---
 // ==========================================
 
-// 1. CẤU HÌNH API
-const GEMINI_API_KEY = "AIzaSyAZkIEqaINg7NlymXnUW829ahxWnaqtE1w"; 
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+// ⚠️ QUAN TRỌNG: Thay dòng dưới bằng link Cloudflare Worker của bạn
+const WORKER_URL = "https://onthi2026.vutao27112k8t.workers.dev/"; 
+
 // Biến toàn cục lưu trạng thái ảnh
 let currentAIImageBase64 = null;
 let currentMimeType = null;
 
-// ================= 1. CÔNG NGHỆ NÉN ẢNH (GIỮ NGUYÊN VÌ RẤT TỐT) =================
+// ================= 1. CÔNG NGHỆ NÉN ẢNH =================
 function compressImage(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -855,7 +855,7 @@ function compressImage(file) {
                 canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Nén JPEG chất lượng 0.7 (Cân bằng giữa đẹp và nhẹ)
+                // Nén JPEG chất lượng 0.7
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                 resolve(dataUrl);
             };
@@ -870,17 +870,14 @@ window.handleAIImageSelect = async function(input) {
     const file = input.files[0];
     if (!file) return;
 
-    // Kiểm tra định dạng
     if (!file.type.startsWith('image/')) {
         alert("Vui lòng chỉ chọn file ảnh!");
         return;
     }
 
     try {
-        // Gọi hàm nén ảnh
         const resizedBase64 = await compressImage(file);
         
-        // Hiển thị Preview lên giao diện
         const imgDisplay = document.getElementById('ai-img-display');
         const previewBlock = document.getElementById('ai-image-preview');
         
@@ -889,13 +886,13 @@ window.handleAIImageSelect = async function(input) {
             previewBlock.classList.remove('hidden');
         }
         
-        // Lưu dữ liệu để gửi đi (bỏ phần prefix 'data:image/jpeg;base64,')
+        // Lưu dữ liệu để gửi đi (bỏ prefix data:image...)
         currentAIImageBase64 = resizedBase64.split(',')[1]; 
         currentMimeType = 'image/jpeg';
         
     } catch (e) {
         console.error("Lỗi xử lý ảnh:", e);
-        alert("Không thể đọc file ảnh này. Thử ảnh khác xem sao!");
+        alert("Không thể đọc file ảnh này.");
     }
 };
 
@@ -918,15 +915,15 @@ window.handleAIEnter = function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         window.sendToGemini();
-        // Reset chiều cao ô input
         e.target.style.height = 'auto';
     }
 };
 
-// ================= 5. GỬI TIN NHẮN (ĐÃ SỬA LỖI ĐỌC ẢNH) =================
+// ================= 5. GỬI TIN NHẮN (GỌI QUA WORKER) =================
 window.sendToGemini = async function(isRetry = false) {
-    if (typeof GEMINI_API_KEY === 'undefined' || GEMINI_API_KEY.includes("DIEN_API")) {
-        alert("⚠️ Bạn chưa điền API Key!");
+    // Kiểm tra cấu hình Worker URL
+    if (!WORKER_URL || WORKER_URL.includes("ten-ban")) {
+        alert("⚠️ Bạn chưa điền đúng link Cloudflare Worker trong code!");
         return;
     }
 
@@ -935,7 +932,6 @@ window.sendToGemini = async function(isRetry = false) {
 
     // --- LOGIC LẤY DỮ LIỆU ---
     if (!isRetry) {
-        // Nếu có ảnh mà ko có chữ -> Tự thêm chữ
         if (currentAIImageBase64 && !text) {
             text = "Hãy phân tích chi tiết hình ảnh này.";
         }
@@ -952,10 +948,8 @@ window.sendToGemini = async function(isRetry = false) {
         }
         appendAIMessage('user', text, displayImgSrc);
         
-        // Lưu tạm để retry nếu cần
         window.lastRequest = { text, image: currentAIImageBase64, mime: currentMimeType };
 
-        // Reset Input
         input.value = '';
         input.style.height = 'auto';
         window.removeAIImage();
@@ -967,32 +961,32 @@ window.sendToGemini = async function(isRetry = false) {
     const loadingId = 'loading-' + Date.now();
     if (!isRetry) appendAILoading(loadingId);
 
-    // --- QUAN TRỌNG: GÓI DỮ LIỆU (ẢNH TRƯỚC - CHỮ SAU) ---
+    // --- ĐÓNG GÓI DỮ LIỆU ---
     const parts = [];
-    const requestImage = isRetry ? window.lastRequest.image : (window.lastRequest?.image || currentAIImageBase64); // Lấy ảnh từ bộ nhớ tạm nếu biến chính đã bị xóa
+    const requestImage = isRetry ? window.lastRequest.image : (window.lastRequest?.image || currentAIImageBase64); 
     
-    // 1. Đẩy dữ liệu ảnh vào TRƯỚC
     if (requestImage) {
         parts.push({
             inline_data: {
-                mime_type: 'image/jpeg', // Luôn ép kiểu JPEG cho ổn định
+                mime_type: 'image/jpeg',
                 data: requestImage
             }
         });
-        console.log("Đã đóng gói ảnh gửi đi. Kích thước: " + requestImage.length);
     }
 
-    // 2. Đẩy câu hỏi vào SAU
     parts.push({ text: text });
 
+    // Payload chuẩn gửi sang Worker (Worker sẽ đẩy tiếp sang Google)
+    const payload = { contents: [{ parts: parts }] };
+
     try {
-        const response = await fetch(API_URL, {
+        // --- GỌI SANG CLOUDFLARE WORKER ---
+        const response = await fetch(WORKER_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: parts }] })
+            body: JSON.stringify(payload)
         });
 
-        // Xử lý mạng bận (429/503)
         if (response.status === 429 || response.status === 503) {
             const loadingElem = document.getElementById(loadingId);
             if(loadingElem) loadingElem.innerHTML = `<span class="text-orange-500 text-xs animate-pulse">⏳ Mạng bận, thử lại sau 5s...</span>`;
@@ -1003,7 +997,10 @@ window.sendToGemini = async function(isRetry = false) {
             return;
         }
 
-        if (!response.ok) throw new Error(`Lỗi ${response.status}`);
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || `Lỗi ${response.status}`);
+        }
 
         const data = await response.json();
         const loadingFinal = document.getElementById(loadingId);
@@ -1013,7 +1010,7 @@ window.sendToGemini = async function(isRetry = false) {
             const reply = data.candidates[0].content.parts[0].text;
             appendAIMessage('ai', reply);
         } else {
-            appendAIMessage('ai', 'Không nhận được phản hồi.');
+            appendAIMessage('ai', 'Không nhận được phản hồi từ AI.');
         }
 
     } catch (error) {
@@ -1023,19 +1020,17 @@ window.sendToGemini = async function(isRetry = false) {
         appendAIMessage('ai', `⚠️ Lỗi: ${error.message}`);
     }
 };
+
 // ================= 6. HÀM UI: VẼ TIN NHẮN =================
-// Thay thế toàn bộ hàm appendAIMessage cũ bằng hàm này
 function appendAIMessage(role, text, imgSrc = null) {
     const container = document.getElementById('ai-chat-messages');
     if(!container) return;
 
     const div = document.createElement('div');
     
-    // 1. Xử lý Markdown (In đậm, list, xuống dòng)
-    // Nếu chưa cài thư viện marked thì dùng fallback text thường
+    // Markdown parser
     let htmlContent = (typeof marked !== 'undefined') ? marked.parse(text) : text.replace(/\n/g, '<br>');
 
-    // 2. CSS cho tin nhắn
     if (role === 'user') {
         div.className = "flex items-end justify-end gap-2 animate-fade-in-up mb-4";
         let imgHtml = imgSrc ? `<img src="${imgSrc}" class="max-w-[200px] rounded-lg border border-white/20 mb-2 block ml-auto object-cover">` : '';
@@ -1059,7 +1054,7 @@ function appendAIMessage(role, text, imgSrc = null) {
     
     container.appendChild(div);
     
-    // 3. Kích hoạt KaTeX để vẽ công thức toán (Sau khi đã in ra màn hình)
+    // Render công thức Toán (nếu có)
     if (typeof renderMathInElement !== 'undefined') {
         renderMathInElement(div, {
             delimiters: [
@@ -1072,6 +1067,7 @@ function appendAIMessage(role, text, imgSrc = null) {
 
     container.scrollTop = container.scrollHeight;
 }
+
 // ================= 7. HÀM UI: HIỆU ỨNG LOADING =================
 function appendAILoading(id) {
     const container = document.getElementById('ai-chat-messages');
@@ -1095,7 +1091,6 @@ function appendAILoading(id) {
 }
 
 // ================= 8. TIỆN ÍCH KHÁC =================
-// Tự động resize ô nhập liệu
 setTimeout(() => {
     const aiInput = document.getElementById('ai-input');
     if(aiInput) aiInput.addEventListener('input', function() { 
@@ -1104,12 +1099,12 @@ setTimeout(() => {
     });
 }, 1000);
 
-// Xóa chat
 window.clearAIChat = function() {
     if(confirm("Xóa toàn bộ đoạn chat?")) {
         document.getElementById('ai-chat-messages').innerHTML = '';
         window.removeAIImage();
     }
+
 };
 // ==========================================
 // --- ADMIN FEATURES (MODIFIED) ---
