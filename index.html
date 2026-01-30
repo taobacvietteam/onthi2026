@@ -1,1045 +1,205 @@
 <!DOCTYPE html>
 <html lang="vi">
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Hệ Thống Luyện Thi 2026 - Táo Bắc Việt Team</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông Báo Bảo Trì - Táo Bắc Việt Team</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://meet.jit.si/external_api.js"></script>
-    <link rel="stylesheet" href="style.css">
-
     <style>
-        /* --- GLOBAL STYLES --- */
-        body { 
-            -webkit-tap-highlight-color: transparent;
-            /* Ngăn chặn hành vi kéo để refresh trên mobile để trải nghiệm giống App hơn */
-            overscroll-behavior-y: none; 
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         
-        /* Custom Scrollbar - Tinh chỉnh nhỏ hơn cho mobile */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Animation Classes */
-        .hidden-section { display: none !important; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Sidebar Transitions */
-        .sidebar-collapsed { width: 5rem !important; }
-        .sidebar-collapsed .menu-text { display: none !important; }
-        .sidebar-collapsed .menu-header-text { display: none; }
-        
-        /* Z-Index Hierarchy */
-        .modal-overlay { background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 70; }
-        #mobile-overlay { z-index: 40; }
-        aside { z-index: 50; } 
-
-        /* Music Player Animation */
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .animate-spin-slow { animation: spin 8s linear infinite; }
-
-        /* --- RESPONSIVE FIXES --- */
-        /* Đảm bảo canvas game không bao giờ to hơn màn hình */
-        canvas {
-            max-width: 100% !important;
-            max-height: 80vh !important;
-            object-fit: contain;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: white;
+            overflow-x: hidden;
         }
 
-        /* Fix chiều cao chuẩn cho mobile (tránh thanh địa chỉ che mất) */
-        .h-safe-screen {
-            height: 100vh; /* Fallback */
-            height: 100dvh; /* Modern mobile browsers */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .countdown-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 16px;
+            min-width: 80px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-support {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            transition: all 0.3s ease;
         }
         
-        /* Đảm bảo flex child scroll hoạt động đúng */
-        .flex-scroll-fix {
-            min-height: 0;
-            min-width: 0;
+        .btn-support:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px rgba(59, 130, 246, 0.5);
         }
-
-        /* Safe area cho iPhone đời mới (tai thỏ) */
-        .safe-area-pb {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-        /* --- TET LUCKY SPIN CSS --- */
-#lucky-wheel-inner {
-    position: relative;
-    /* Hiệu ứng bóng đổ tỏa sáng màu vàng */
-    box-shadow: 0 0 0 8px #B71C1C, 0 0 20px rgba(255, 215, 0, 0.8); 
-}
-
-/* Trang trí các múi màu (nếu không dùng JS Canvas) */
-.wheel-segment-text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform-origin: 0 0;
-    /* Cần JS tính toán góc xoay cho từng chữ */
-}
-
-/* Nút Quay phong cách Tết */
-#btn-spin-action {
-    background-size: 200% auto;
-    animation: shine 3s linear infinite;
-}
-@keyframes shine {
-    to {
-        background-position: 200% center;
-    }
-}
-
-/* Hiệu ứng pháo giấy/hoa mai rơi (Optional class để JS kích hoạt) */
-.confetti-fall {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    background-color: #FFD700;
-    animation: fall linear forwards;
-}
-
-@keyframes fall {
-    to {
-        transform: translateY(100vh) rotate(720deg);
-    }
-}
-#wheel-labels .wheel-label {
-    position: absolute;
-    width: 50%; /* Nằm từ tâm ra rìa */
-    height: 40px;
-    top: calc(50% - 20px);
-    left: 50%;
-    transform-origin: left center; /* Xoay từ tâm vòng tròn */
-    display: flex;
-    align-items: center;
-    justify-content: flex-end; /* Đẩy chữ ra rìa ngoài */
-    font-weight: 800;
-    color: #7f1d1d; /* Đỏ đậm */
-    text-transform: uppercase;
-    font-size: 10px; /* Giảm xuống 10px cho 15 ô */
-    padding-right: 15px;
-}
-
-@media (min-width: 768px) {
-    #wheel-labels .wheel-label { font-size: 11px; padding-right: 30px; }
-}
     </style>
 </head>
-<body class="bg-gray-50 font-sans text-gray-800 h-safe-screen flex flex-col overflow-hidden text-sm md:text-base">
+<body class="min-h-screen flex items-center justify-center p-4">
+    <!-- Background Gradient Orbs -->
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
-
-    <div id="auth-view" class="fixed inset-0 z-[60] flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-4">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md mx-auto transform transition-all duration-300 flex flex-col max-h-[90dvh] overflow-y-auto">
-            <h1 class="text-3xl md:text-4xl font-extrabold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Luyện Thi 2026</h1>
-            <p class="text-center text-gray-500 mb-6">Học Tập - Kết Nối - Giải Trí</p>
-            
-            <div class="space-y-4">
-                <input type="email" id="auth-email" placeholder="Email (để đăng nhập/đăng ký)" class="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <input type="password" id="auth-pass" placeholder="Mật khẩu (tối thiểu 6 ký tự)" class="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <button onclick="handleLogin()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3 md:p-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition active:scale-95">Đăng Nhập</button>
-                <button type="button" onclick="handleRegister()" id="btn-register-submit" class="w-full bg-white text-gray-700 border border-gray-300 p-3 md:p-4 rounded-xl font-bold hover:bg-gray-50 transition active:scale-95">Đăng Ký Mới</button>
+    <div class="max-w-4xl w-full z-10">
+        <div class="text-center mb-10">
+            <div class="inline-block p-4 bg-white/5 rounded-full mb-6 floating border border-white/10">
+                <i class="fas fa-hammer text-5xl text-blue-400"></i>
             </div>
-            <p class="text-xs text-center text-gray-400 mt-6">Hệ thống hỗ trợ học tập trực tuyến toàn diện</p>
+            <h1 class="text-4xl md:text-6xl font-extrabold mb-4">
+                Đang <span class="gradient-text">Nâng Cấp</span>
+            </h1>
+            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
+                Hệ thống luyện thi đang được bảo trì định kỳ. 
+                Hẹn gặp lại bạn vào ngày <span class="text-white font-bold">07/02/2026</span>.
+            </p>
         </div>
-    </div>
 
-    <div id="mobile-overlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black bg-opacity-50 hidden md:hidden transition-opacity backdrop-blur-sm"></div>
-
-    <div id="main-app" class="hidden-section flex flex-1 h-full relative overflow-hidden">
-        
-        <aside id="main-sidebar" class="fixed inset-y-0 left-0 bg-white shadow-xl flex flex-col transition-transform duration-300 transform -translate-x-full md:translate-x-0 md:relative w-64 z-50 h-full">
-            <div class="p-4 flex items-center justify-between border-b h-16 shrink-0">
-                <div class="flex items-center justify-center w-full">
-                    <i class="fas fa-graduation-cap text-3xl text-indigo-600"></i>
-                    <span class="menu-header-text ml-2 text-xl font-bold text-gray-800">2026</span>
-                </div>
-                <button onclick="toggleMobileMenu()" class="md:hidden text-gray-500 hover:text-red-500 p-2">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+        <!-- Countdown Timer -->
+        <div class="flex justify-center gap-4 mb-12 flex-wrap">
+            <div class="countdown-box">
+                <div id="days" class="text-3xl font-bold text-blue-400">00</div>
+                <div class="text-xs uppercase tracking-widest text-gray-500">Ngày</div>
             </div>
-            
-            <nav class="flex-1 overflow-y-auto py-2 space-y-1 px-2 custom-scrollbar">
-    
-<button onclick="nav('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-        <i class="fas fa-home w-6 text-center group-hover:scale-110 transition-transform"></i> 
-        <span class="menu-text ml-2 font-medium">Trang Chủ</span>
-    </button>
-
-    <button onclick="nav('subjects')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-        <i class="fas fa-book w-6 text-center group-hover:scale-110 transition-transform"></i> 
-        <span class="menu-text ml-2 font-medium">Môn Học</span>
-    </button>
-
-    <button onclick="nav('groups')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-        <i class="fas fa-users w-6 text-center group-hover:scale-110 transition-transform"></i> 
-        <span class="menu-text ml-2 font-medium">Nhóm Học Tập</span>
-    </button>
-
-    <button onclick="window.handleNavReal('hsa')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-        <i class="fas fa-brain w-6 text-center group-hover:scale-110 transition-transform"></i> 
-        <span class="menu-text ml-2 font-bold text-indigo-700 group-hover:text-indigo-800">Luyện Thi HSA/TSA</span>
-    </button>
-
-    <button onclick="nav('chat')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-        <i class="fas fa-comments w-6 text-center group-hover:scale-110 transition-transform"></i> 
-        <span class="menu-text ml-2 font-medium">Tin Nhắn</span>
-    </button>
-<button onclick="nav('ai-chat')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-    <i class="fas fa-robot w-6 text-center group-hover:scale-110 transition-transform"></i> 
-    <span class="menu-text ml-2 font-medium">Trợ Lý AI </span>
-    <span class="ml-auto bg-gradient-to-r from-blue-500 to-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">PRO</span>
-</button>
-    <button onclick="nav('games')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center group">
-        <i class="fas fa-gamepad w-6 text-center group-hover:scale-110 transition-transform"></i> 
-        <span class="menu-text ml-2 font-medium">Giải Trí</span>
-    </button>
-<button onclick="nav('lucky-spin')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-gray-600 hover:text-red-600 transition flex items-center group relative overflow-hidden">
-    <div class="absolute inset-0 bg-yellow-100 opacity-0 group-hover:opacity-20 transition"></div>
-    <i class="fas fa-gift w-6 text-center text-red-500 group-hover:scale-110 group-hover:rotate-12 transition-transform"></i> 
-    <span class="menu-text ml-2 font-bold text-red-600">Vòng Quay Tết</span>
-    <span class="ml-auto bg-yellow-400 text-red-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow border border-yellow-200 animate-pulse">LÌ XÌ</span>
-</button>
-    <button onclick="toggleMusicPlayer()" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition flex items-center justify-between group">
-        <div class="flex items-center">
-            <i class="fas fa-music w-6 text-center group-hover:scale-110 transition-transform"></i> 
-            <span class="menu-text ml-2 font-medium">Relax Music</span>
+            <div class="countdown-box">
+                <div id="hours" class="text-3xl font-bold text-purple-400">00</div>
+                <div class="text-xs uppercase tracking-widest text-gray-500">Giờ</div>
+            </div>
+            <div class="countdown-box">
+                <div id="minutes" class="text-3xl font-bold text-pink-400">00</div>
+                <div class="text-xs uppercase tracking-widest text-gray-500">Phút</div>
+            </div>
+            <div class="countdown-box">
+                <div id="seconds" class="text-3xl font-bold text-orange-400">00</div>
+                <div class="text-xs uppercase tracking-widest text-gray-500">Giây</div>
+            </div>
         </div>
-        <span id="music-indicator" class="hidden flex space-x-0.5 h-3 items-end mr-2">
-            <span class="w-0.5 h-full bg-indigo-500 animate-[bounce_1s_infinite]"></span>
-            <span class="w-0.5 h-2 bg-indigo-500 animate-[bounce_1.2s_infinite]"></span>
-            <span class="w-0.5 h-3 bg-indigo-500 animate-[bounce_0.8s_infinite]"></span>
-        </span>
-    </button>
 
-    <button onclick="nav('cinema')" class="nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-gray-600 hover:text-red-600 transition flex items-center group">
-        <div class="w-6 text-center group-hover:scale-110 transition-transform">
-            <i class="fas fa-film"></i>
-        </div>
-        <span class="menu-text ml-2 font-medium">Rạp Chiếu Phim</span>
-        <span class="ml-auto bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">HD</span>
-    </button>
-    
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <!-- Updates Content -->
+            <div class="glass-card p-8 border-l-4 border-l-blue-500">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-3">
+                    <i class="fas fa-rocket text-blue-400"></i> Cập nhật mới sắp tới
+                </h3>
+                <ul class="space-y-3 text-gray-300">
+                    <li class="flex items-start gap-3">
+                        <i class="fas fa-bolt text-yellow-500 mt-1"></i>
+                        <span>Tối ưu hóa tốc độ phản hồi của Trợ lý AI.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fas fa-file-signature text-purple-500 mt-1"></i>
+                        <span>Cập nhật bộ đề thi thử 2026 chuẩn cấu trúc mới.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fas fa-shield-alt text-green-500 mt-1"></i>
+                        <span>Nâng cấp bảo mật tài khoản và dữ liệu học tập.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fas fa-mobile-alt text-pink-500 mt-1"></i>
+                        <span>Cải thiện giao diện trên thiết bị di động.</span>
+                    </li>
+                </ul>
+            </div>
 
-
-
-                <div id="admin-menu" class="hidden pt-4 border-t mt-4">
-                    <p class="px-4 text-xs font-bold text-gray-400 uppercase menu-text mb-2">Admin</p>
-                    <button onclick="nav('admin')" class="w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 font-bold transition flex items-center">
-                        <i class="fas fa-shield-alt w-6 text-center"></i> <span class="menu-text ml-2">Quản Trị</span>
+            <!-- Support Area -->
+            <div class="glass-card p-8 flex flex-col justify-center text-center items-center">
+                <h3 class="text-xl font-bold mb-3">Bạn cần hỗ trợ?</h3>
+                <p class="text-gray-400 mb-6 italic">"Mọi thắc mắc vui lòng liên hệ taobacvietteam để được hỗ trợ tốt nhất."</p>
+                
+                <div class="w-full space-y-4">
+                    <button onclick="copyEmail()" class="w-full btn-support text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 group relative overflow-hidden">
+                        <i class="fas fa-envelope text-xl"></i>
+                        <span>Hỗ trợ: taobacvietteam</span>
                     </button>
-                </div>
-            </nav>
-
-            <div class="p-4 border-t bg-gray-50 shrink-0 safe-area-pb">
-                <div class="flex items-center cursor-pointer hover:bg-gray-200 p-2 rounded-lg transition" onclick="openProfileModal()">
-                    <img id="my-avatar-img" src="https://ui-avatars.com/api/?name=User" class="w-8 h-8 rounded-full border-2 border-indigo-500 flex-shrink-0">
-                    <div class="ml-3 overflow-hidden menu-text">
-                        <p id="my-name-display" class="text-sm font-bold truncate">User</p>
-                        <p id="my-role-display" class="text-xs text-gray-500">Student</p>
-                    </div>
-                </div>
-                 <button onclick="toggleDesktopSidebar()" class="hidden md:block w-full text-center mt-2 text-gray-400 hover:text-indigo-600 text-sm">
-                    <i id="toggle-icon" class="fas fa-chevron-left"></i>
-                </button>
-            </div>
-        </aside>
-
-        <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-gray-50 transition-all duration-300 w-full">
-            
-            <div class="md:hidden h-14 bg-white shadow-sm flex items-center justify-between px-4 z-10 shrink-0">
-                <div class="flex items-center gap-3">
-                    <button onclick="toggleMobileMenu()" class="text-gray-600 hover:text-indigo-600 p-2 rounded active:bg-gray-100">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                    <span class="font-bold text-lg text-indigo-800">LT 2026</span>
-                </div>
-                <button onclick="handleLogout()" class="text-red-500 p-2 active:bg-red-50 rounded"><i class="fas fa-sign-out-alt"></i></button>
-            </div>
-
-            <div id="content-container" class="flex-1 overflow-y-auto p-3 md:p-6 lg:p-8 relative w-full custom-scrollbar">
-                
-                <div id="view-dashboard" class="fade-in space-y-4 md:space-y-6">
-    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
-        <div class="relative z-10">
-            <h2 class="text-2xl md:text-3xl font-bold mb-2">Chào mừng trở lại!</h2>
-            <p class="opacity-90 text-sm md:text-base">Hôm nay bạn muốn ôn tập môn gì hay giải trí một chút?</p>
-        </div>
-        <i class="fas fa-rocket absolute -bottom-5 -right-5 text-8xl md:text-9xl opacity-20 transform rotate-12"></i>
-    </div>
-
-    <div class="bg-white border border-blue-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-    <div class="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
-        <i class="fas fa-book-reader text-6xl text-blue-600"></i>
-    </div>
-    
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 relative z-10 gap-2">
-        <h3 class="font-bold text-gray-800 flex items-center gap-2">
-            <span class="bg-blue-100 text-blue-600 p-1.5 rounded-lg shadow-sm"><i class="fas fa-medal"></i></span>
-            BXH Chăm Chỉ
-        </h3>
-        
-        <div class="flex bg-gray-100 p-1 rounded-lg">
-            <button onclick="loadLearningLeaderboard('video')" id="tab-rank-video" class="px-3 py-1 text-xs font-bold rounded-md transition bg-white text-blue-600 shadow-sm">
-                <i class="fas fa-play-circle"></i> Video
-            </button>
-            <button onclick="loadLearningLeaderboard('exam')" id="tab-rank-exam" class="px-3 py-1 text-xs font-bold rounded-md transition text-gray-500 hover:text-purple-600">
-                <i class="fas fa-file-alt"></i> Đề Thi
-            </button>
-        </div>
-    </div>
-     
-        <div id="dashboard-leaderboard-list" class="space-y-2 relative z-10 min-h-[100px]">
-            <div class="text-center text-xs text-gray-400 py-4 flex flex-col items-center">
-                <i class="fas fa-spinner fa-spin mb-2 text-indigo-400 text-lg"></i> 
-                Đang tải dữ liệu thi đua...
-            </div>
-        </div>
-    </div>
-    <h3 class="font-bold text-lg md:text-xl text-gray-700 border-l-4 border-indigo-500 pl-3">Tiến Độ Tổng Quan</h3>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <span class="font-bold text-gray-600">Toán</span>
-                <i class="fas fa-calculator text-blue-500 bg-blue-100 p-2 rounded-lg"></i>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2">
-                <div id="dash-prog-toan" class="bg-blue-500 h-2 rounded-full" style="width: 30%"></div>
-            </div>
-        </div>
-        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <span class="font-bold text-gray-600">Văn</span>
-                <i class="fas fa-pen-nib text-pink-500 bg-pink-100 p-2 rounded-lg"></i>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2">
-                <div id="dash-prog-van" class="bg-pink-500 h-2 rounded-full" style="width: 45%"></div>
-            </div>
-        </div>
-        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <span class="font-bold text-gray-600">Anh</span>
-                <i class="fas fa-language text-yellow-500 bg-yellow-100 p-2 rounded-lg"></i>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2">
-                <div id="dash-prog-anh" class="bg-yellow-500 h-2 rounded-full" style="width: 60%"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-                <div id="view-subjects" class="hidden-section fade-in">
-                    <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6">Kho Môn Học</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                        <div onclick="openSubject('Toán')" class="bg-white p-5 md:p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-blue-500 group active:scale-95">
-                            <h3 class="text-lg md:text-xl font-bold group-hover:text-blue-600">Toán Học</h3>
-                            <p class="text-xs md:text-sm text-gray-500 mt-2">Đại số, Hình học, Giải tích.</p>
-                        </div>
-                        <div onclick="openSubject('Lý')" class="bg-white p-5 md:p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-purple-500 group active:scale-95">
-                            <h3 class="text-lg md:text-xl font-bold group-hover:text-purple-600">Vật Lý</h3>
-                            <p class="text-xs md:text-sm text-gray-500 mt-2">Cơ, Điện, Quang, Hạt nhân.</p>
-                        </div>
-                        <div onclick="openSubject('Hóa')" class="bg-white p-5 md:p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-green-500 group active:scale-95">
-                            <h3 class="text-lg md:text-xl font-bold group-hover:text-green-600">Hóa Học</h3>
-                            <p class="text-xs md:text-sm text-gray-500 mt-2">Vô cơ, Hữu cơ.</p>
-                        </div>
-                         <div onclick="openSubject('Văn')" class="bg-white p-5 md:p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-pink-500 group active:scale-95">
-                            <h3 class="text-lg md:text-xl font-bold group-hover:text-pink-600">Ngữ Văn</h3>
-                            <p class="text-xs md:text-sm text-gray-500 mt-2">Nghị luận văn học, xã hội.</p>
-                        </div>
-                         <div onclick="openSubject('Anh')" class="bg-white p-5 md:p-6 rounded-xl shadow cursor-pointer hover:shadow-lg transition border-t-4 border-yellow-500 group active:scale-95">
-                            <h3 class="text-lg md:text-xl font-bold group-hover:text-yellow-600">Tiếng Anh</h3>
-                            <p class="text-xs md:text-sm text-gray-500 mt-2">Ngữ pháp, Từ vựng, Reading.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="view-subject-detail" class="hidden-section fade-in h-full flex flex-col">
-                    <div class="flex items-center gap-4 mb-4 shrink-0">
-                        <button onclick="nav('subjects')" class="text-indigo-600 font-bold px-2 py-1 rounded hover:bg-indigo-50"><i class="fas fa-arrow-left"></i> <span class="hidden md:inline">Quay lại</span></button>
-                        <h2 id="detail-subject-title" class="text-xl md:text-3xl font-bold text-gray-800 truncate"></h2>
-                    </div>
-
-                    <div class="flex space-x-1 border-b mb-4 overflow-x-auto shrink-0 custom-scrollbar pb-1">
-                        <button onclick="switchSubjectTab('video')" id="tab-subj-video" class="flex-1 py-2 md:py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 transition min-w-[80px] text-sm md:text-base whitespace-nowrap"><i class="fas fa-video"></i> Bài Giảng</button>
-                        <button onclick="switchSubjectTab('doc')" id="tab-subj-doc" class="flex-1 py-2 md:py-3 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition min-w-[80px] text-sm md:text-base whitespace-nowrap"><i class="fas fa-file-pdf"></i> Tài Liệu</button>
-                        <button onclick="switchSubjectTab('exam')" id="tab-subj-exam" class="flex-1 py-2 md:py-3 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition min-w-[80px] text-sm md:text-base whitespace-nowrap"><i class="fas fa-edit"></i> Thi Online</button>
-                    </div>
-
-                    <div id="subj-content-video" class="flex-1 overflow-y-auto space-y-4 flex-scroll-fix"></div>
-
-                    <div id="subj-content-doc" class="hidden-section flex-1 flex flex-col h-full flex-scroll-fix">
-                        <div id="doc-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-1"></div>
-                        <div id="doc-viewer" class="flex-1 bg-gray-100 rounded-lg border hidden relative h-full">
-                            <button onclick="closeDocViewer()" class="absolute top-2 right-2 bg-red-500 text-white z-10 px-3 py-1 rounded shadow text-sm">Đóng</button>
-                            <iframe id="pdf-frame" class="w-full h-full rounded-lg" src=""></iframe>
-                        </div>
-                    </div>
-
-                    <div id="subj-content-exam" class="hidden-section flex-1 flex flex-col h-full flex-scroll-fix">
-                        <div id="exam-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-1"></div>
-                        <div id="exam-viewer" class="flex-1 bg-white rounded-lg border hidden relative h-full">
-                            <button onclick="closeExamViewer()" class="absolute top-2 right-2 bg-red-500 text-white z-10 px-3 py-1 rounded shadow text-sm">Đóng</button>
-                            <iframe id="exam-frame" class="w-full h-full rounded-lg" src=""></iframe>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="view-groups" class="hidden-section fade-in">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl md:text-2xl font-bold">Nhóm Học Tập</h2>
-                        <button onclick="openCreateGroupModal()" id="btn-create-group" class="hidden bg-indigo-600 text-white px-3 py-2 md:px-4 text-sm md:text-base rounded-lg hover:bg-indigo-700 shadow"><i class="fas fa-plus"></i> Tạo Nhóm</button>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6" id="groups-list"></div>
-                </div>
-
-                <div id="view-meeting" class="hidden-section fade-in h-full flex flex-col">
-                    <div class="flex justify-between items-center mb-2 px-1 shrink-0">
-                        <h2 class="text-lg md:text-xl font-bold text-red-600 truncate"><i class="fas fa-video"></i> Phòng Học Online</h2>
-                        <button onclick="endMeeting()" class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300 text-xs md:text-sm font-bold text-gray-700 whitespace-nowrap">Rời phòng</button>
-                    </div>
-                    <div id="meet-container" class="flex-1 bg-black rounded-xl overflow-hidden shadow-2xl relative w-full h-full flex-scroll-fix">
-                        <div class="absolute inset-0 flex items-center justify-center text-white">
-                            <p>Đang tải phòng học...</p>
-                        </div>
-                    </div>
-                </div>
-<div id="view-hsa" class="hidden-section fade-in h-full overflow-y-auto p-4 md:p-8">
-    <div class="mb-8">
-        <h2 class="text-3xl font-bold text-gray-800 mb-2">Luyện Thi Đánh Giá Năng Lực & Tư Duy</h2>
-        <p class="text-gray-500">Chọn kỳ thi bạn muốn ôn luyện để truy cập kho bài giảng và đề thi chuyên biệt.</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-        <div onclick="openSubject('HSA')" class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white cursor-pointer shadow-lg hover:shadow-2xl hover:-translate-y-1 transition transform relative overflow-hidden group">
-            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full group-hover:scale-150 transition duration-700"></div>
-            <div class="relative z-10 flex flex-col h-full justify-between">
-                <div>
-                    <div class="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-2xl font-bold">H</div>
-                    <h3 class="text-2xl font-bold mb-1">Thi ĐGNL (HSA)</h3>
-                    <p class="text-blue-100 text-sm">Đại học Quốc gia Hà Nội</p>
-                </div>
-                <div class="mt-6 flex justify-between items-end">
-                    <span class="text-xs bg-white/20 px-2 py-1 rounded">Tư duy định lượng & định tính</span>
-                    <i class="fas fa-arrow-right bg-white text-blue-600 w-8 h-8 rounded-full flex items-center justify-center shadow"></i>
-                </div>
-            </div>
-        </div>
-
-        <div onclick="openSubject('TSA')" class="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl p-6 text-white cursor-pointer shadow-lg hover:shadow-2xl hover:-translate-y-1 transition transform relative overflow-hidden group">
-            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full group-hover:scale-150 transition duration-700"></div>
-            <div class="relative z-10 flex flex-col h-full justify-between">
-                <div>
-                    <div class="bg-white/20 w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-2xl font-bold">T</div>
-                    <h3 class="text-2xl font-bold mb-1">Thi ĐGTD (TSA)</h3>
-                    <p class="text-red-100 text-sm">Đại học Bách Khoa Hà Nội</p>
-                </div>
-                <div class="mt-6 flex justify-between items-end">
-                    <span class="text-xs bg-white/20 px-2 py-1 rounded">Toán, Đọc hiểu, Khoa học</span>
-                    <i class="fas fa-arrow-right bg-white text-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div id="view-ai-chat" class="hidden-section fade-in h-full flex flex-col bg-gray-50">
-    
-    <div class="bg-white p-4 border-b flex items-center justify-between shadow-sm flex-shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="bg-gradient-to-tr from-blue-500 to-purple-600 w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg">
-                <i class="fas fa-sparkles"></i>
-            </div>
-            <div>
-                <h2 class="font-bold text-gray-800 text-lg">Trợ Lý Học Tập AI</h2>
-                <p class="text-xs text-gray-500 flex items-center gap-1">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online • Powered by Gemini
-                </p>
-            </div>
-        </div>
-        <button onclick="clearAIChat()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
-            <i class="fas fa-trash-alt"></i> Xóa đoạn chat
-        </button>
-    </div>
-
-    <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        <div class="flex items-start gap-3">
-            <div class="bg-white border border-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-purple-600 flex-shrink-0">
-                <i class="fas fa-robot"></i>
-            </div>
-            <div class="bg-white border border-gray-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-gray-700 text-sm leading-relaxed">
-                Xin chào! Mình là trợ lý AI. Mình có thể giúp bạn giải bài tập, viết văn, dịch thuật hoặc giải thích kiến thức. Bạn cần giúp gì không?
-            </div>
-        </div>
-    </div>
-
-    <div class="p-4 bg-white border-t flex-shrink-0 relative">
-        
-        <div id="ai-image-preview" class="hidden absolute bottom-full left-0 w-full bg-white/90 backdrop-blur-sm p-3 border-t border-gray-200 flex items-center gap-3 animate-fade-in-up z-10">
-            <div class="relative group">
-                <img id="ai-img-display" src="" class="h-20 w-auto rounded-lg border border-gray-300 shadow-sm object-cover">
-                <button onclick="removeAIImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-600">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <span class="text-xs text-gray-500 italic">Đã chọn 1 ảnh</span>
-        </div>
-
-        <div class="relative flex items-end gap-2 max-w-4xl mx-auto">
-            <button onclick="document.getElementById('ai-image-input').click()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 w-10 h-10 rounded-full flex items-center justify-center transition shrink-0" title="Tải ảnh lên">
-                <i class="fas fa-image"></i>
-            </button>
-            <input type="file" id="ai-image-input" class="hidden" accept="image/*" onchange="handleAIImageSelect(this)">
-
-            <div class="flex-1 bg-gray-100 rounded-2xl border border-gray-200 focus-within:border-purple-500 focus-within:bg-white transition flex items-center p-1">
-                <textarea id="ai-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 px-3 py-2 text-sm text-gray-700 max-h-32 resize-none" placeholder="Hỏi gì đó về ảnh này... (Shift+Enter để xuống dòng)" onkeydown="handleAIEnter(event)"></textarea>
-            </div>
-
-            <button onclick="window.sendToGemini()" id="btn-send-ai" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition transform active:scale-90 shrink-0">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-        
-        <p class="text-[10px] text-gray-400 text-center mt-2">AI có thể mắc lỗi. Hãy kiểm tra lại thông tin quan trọng.</p>
-    </div>
-</div>
-                <div id="view-chat" class="hidden-section fade-in h-full flex flex-col md:flex-row bg-white rounded-xl shadow-lg overflow-hidden border relative">
-    
-    <div id="chat-sidebar" class="w-full md:w-1/4 h-full border-b md:border-b-0 md:border-r bg-gray-50 flex flex-col transition-all">
-        
-        <div class="p-2 md:p-3 border-b flex space-x-1 justify-between shrink-0 bg-white">
-             <button onclick="switchChatTab('global')" class="flex-1 py-2 px-2 text-xs md:text-sm font-bold text-indigo-600 bg-indigo-50 rounded truncate shadow-sm"><i class="fas fa-globe"></i> Chung</button>
-             <button onclick="switchChatTab('private')" class="flex-1 py-2 px-2 text-xs md:text-sm font-bold text-gray-500 hover:bg-gray-100 rounded truncate"><i class="fas fa-user"></i> Riêng</button>
-             <button onclick="switchChatTab('group')" class="flex-1 py-2 px-2 text-xs md:text-sm font-bold text-gray-500 hover:bg-gray-100 rounded truncate"><i class="fas fa-users"></i> Nhóm</button>
-        </div>
-        
-        <div id="chat-list" class="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar bg-gray-50">
-            </div>
-    </div>
-
-    <div id="chat-main-area" class="hidden md:flex flex-1 h-full flex-col relative bg-white w-full md:w-auto z-10">
-        
-        <div id="chat-header" class="p-2 md:p-3 border-b font-bold text-gray-700 flex items-center bg-white shrink-0 gap-3 shadow-sm h-14 md:h-16">
-            <button onclick="backToUserList()" class="md:hidden text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition w-10 h-10 flex items-center justify-center">
-                <i class="fas fa-chevron-left text-xl"></i>
-            </button>
-            
-            <div class="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden text-gray-400 border border-gray-300">
-                <i class="fas fa-user"></i>
-            </div>
-            
-            <span id="chat-title-display" class="truncate text-sm md:text-base flex-1 flex items-center gap-2">
-                Chat Chung
-            </span>
-            
-            </div>
-
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-3 md:p-4 space-y-4 bg-gray-50 custom-scrollbar scroll-smooth">
-            <div class="flex h-full items-center justify-center text-gray-400 flex-col gap-2">
-                <i class="fas fa-comments text-4xl opacity-20"></i>
-                <p class="text-sm">Chọn một cuộc trò chuyện</p>
-            </div>
-        </div>
-        
-        <div class="p-2 md:p-3 border-t bg-white flex flex-col gap-2 shrink-0 safe-area-pb">
-            <div id="image-preview" class="hidden h-16 w-16 relative group">
-                <img id="img-prev-src" class="h-full w-full object-cover rounded-lg border border-gray-200 shadow-sm">
-                <button onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md transition transform group-hover:scale-110">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="flex items-center gap-2 bg-gray-100 rounded-full px-1 py-1 border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white transition-all">
-                <label class="cursor-pointer text-gray-400 hover:text-indigo-600 p-2 rounded-full hover:bg-gray-200 transition">
-                    <i class="fas fa-image text-lg md:text-xl"></i>
-                    <input type="file" accept="image/*" class="hidden" onchange="handleImageSelect(this)">
-                </label>
-                
-                <input type="text" id="chat-input" class="flex-1 bg-transparent border-none focus:ring-0 px-2 py-2 text-sm text-gray-700 placeholder-gray-400" placeholder="Nhập tin nhắn..." autocomplete="off" onkeypress="if(event.key==='Enter') sendChat()">
-                
-                <button onclick="sendChat()" class="text-white bg-indigo-600 hover:bg-indigo-700 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-md transition transform active:scale-90">
-                    <i class="fas fa-paper-plane text-xs md:text-sm ml-0.5"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-                <div id="view-games" class="hidden-section fade-in pb-20">
-                    <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-purple-600">Giải Trí & Xả Stress</h2>
                     
-                    <div class="bg-white border border-yellow-300 p-4 rounded-xl mb-6 shadow-md relative overflow-hidden">
-    <div class="absolute top-0 right-0 p-4 opacity-10">
-        <i class="fas fa-crown text-6xl text-yellow-500"></i>
-    </div>
-
-    <h3 class="font-bold text-yellow-700 text-lg mb-3 flex items-center relative z-10">
-        <i class="fas fa-trophy text-yellow-500 mr-2 text-xl animate-bounce"></i> 
-        Bảng vàng vinh danh
-    </h3>
-
-    <div class="overflow-x-auto relative z-10 bg-white/50 rounded-lg backdrop-blur-sm">
-        <table class="w-full text-left text-sm">
-            <thead class="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800">
-                <tr>
-                    <th class="p-3 text-center rounded-l-lg">Hạng</th>
-                    <th class="p-3">Học viên</th>
-                    <th class="p-3 text-center rounded-r-lg">Điểm Tích Lũy</th>
-                </tr>
-            </thead>
-            <tbody id="leaderboard-list">
-                <tr>
-                    <td colspan="3" class="p-4 text-center text-gray-500">
-                        <i class="fas fa-spinner fa-spin mr-2"></i> Đang tải bảng xếp hạng...
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                        <div class="group relative bg-white rounded-2xl p-5 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 overflow-hidden">
-                            <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-indigo-50 blur-3xl opacity-50"></div>
-                            <div class="h-32 md:h-40 bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-xl flex items-center justify-center mb-5 shadow-inner relative overflow-hidden group-hover:shadow-indigo-500/20 transition-all">
-                                <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
-                                <i class="fas fa-meteor text-5xl md:text-6xl text-red-500 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.8)] transform group-hover:scale-110 transition-transform duration-300"></i>
-                            </div>
-                            <div class="relative">
-                                <h3 class="font-black text-lg md:text-xl text-gray-800 uppercase tracking-wide">Né Thiên Thạch</h3>
-                                <p class="text-xs md:text-sm text-gray-500 mb-4 font-medium">Né khối đỏ <span class="text-red-500">●</span> - Ăn khối vàng <span class="text-yellow-500">●</span></p>
-                                <button onclick="startGame('snake')" class="w-full bg-gradient-to-r from-gray-900 to-gray-700 text-white py-2 md:py-3 rounded-xl font-bold shadow-lg hover:shadow-gray-500/50 hover:from-black hover:to-gray-800 transform active:scale-95 transition-all duration-200 text-sm">
-                                    <i class="fas fa-play mr-2 text-xs"></i> CHƠI NGAY
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="group relative bg-white rounded-2xl p-5 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 overflow-hidden">
-                            <div class="h-32 md:h-40 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center mb-5 shadow-lg shadow-blue-200 group-hover:shadow-blue-400/40 transition-all">
-                                <i class="fas fa-square-root-alt text-5xl md:text-6xl text-white drop-shadow-md transform group-hover:rotate-12 transition-transform duration-300"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-black text-lg md:text-xl text-gray-800 uppercase tracking-wide">Vua Toán Học</h3>
-                                <p class="text-xs md:text-sm text-gray-500 mb-4 font-medium">Tính nhẩm siêu tốc trong 30s</p>
-                                <button onclick="startGame('math')" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white py-2 md:py-3 rounded-xl font-bold shadow-lg hover:shadow-blue-500/40 transform active:scale-95 transition-all duration-200 text-sm">
-                                    <i class="fas fa-calculator mr-2 text-xs"></i> THỬ TÀI
-                                </button>
-                            </div>
-                        </div>
-                        
-                         <div class="group relative bg-white rounded-2xl p-5 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 overflow-hidden">
-                            <div class="h-32 md:h-40 bg-gradient-to-br from-purple-600 to-pink-500 rounded-xl flex items-center justify-center mb-5 shadow-lg shadow-purple-200 group-hover:shadow-purple-400/40 transition-all">
-                                <i class="fas fa-brain text-5xl md:text-6xl text-white drop-shadow-md transform group-hover:scale-110 transition-transform duration-300"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-black text-lg md:text-xl text-gray-800 uppercase tracking-wide">Lật Hình </h3>
-                                <p class="text-xs md:text-sm text-gray-500 mb-4 font-medium">Kiểm tra trí nhớ siêu phàm</p>
-                                <button onclick="startGame('memory')" class="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white py-2 md:py-3 rounded-xl font-bold shadow-lg hover:shadow-purple-500/40 transform active:scale-95 transition-all duration-200 text-sm">
-                                    <i class="fas fa-puzzle-piece mr-2 text-xs"></i> BẮT ĐẦU
-                                </button>
-                            </div>
-                        </div>
+                    <div class="text-sm text-gray-500 flex items-center justify-center gap-2">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Email: taobacvietteam@gmail.com</span>
                     </div>
                 </div>
-
-                <div id="view-admin" class="hidden-section fade-in">
-                    <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-red-600">Trung Tâm Quản Trị</h2>
-                    <div class="flex space-x-2 mb-4 md:mb-6 border-b overflow-x-auto">
-                        <button onclick="switchAdminTab('users')" id="btn-tab-users" class="px-4 py-2 border-b-2 border-red-600 font-bold text-red-600 whitespace-nowrap">Users</button>
-                        <button onclick="switchAdminTab('logs')" id="btn-tab-logs" class="px-4 py-2 text-gray-500 hover:text-red-600 whitespace-nowrap">Logs</button>
-                    </div>
-                    <div id="admin-tab-users" class="w-full overflow-hidden">
-                        <div class="bg-white rounded-lg shadow overflow-x-auto">
-                             <table class="w-full text-left text-sm min-w-[600px]">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="p-3">Email/Tên</th>
-                                        <th class="p-3">Vai trò</th>
-                                        <th class="p-3">Trạng thái</th>
-                                        <th class="p-3 text-right">Hành động</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-user-list"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div id="admin-tab-logs" class="hidden-section w-full overflow-hidden">
-                        <div class="bg-white rounded-lg shadow overflow-x-auto p-4 max-h-[500px]">
-                            <table class="w-full text-left text-sm min-w-[600px]">
-                                <thead class="bg-gray-100 sticky top-0">
-                                    <tr>
-                                        <th class="p-3">Thời gian</th>
-                                        <th class="p-3">Người dùng</th>
-                                        <th class="p-3">Hành động</th>
-                                        <th class="p-3">Chi tiết</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-log-list"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="view-cinema" class="hidden-section h-full flex flex-col animate-fade-in w-full">
-                    <div class="bg-gray-900 text-white p-2 md:p-3 flex flex-wrap md:flex-nowrap justify-between items-center shadow-md shrink-0 gap-2 border-b border-gray-800">
-                        <div class="flex items-center gap-2 md:gap-4 overflow-x-auto">
-                            <h2 class="text-base md:text-lg font-bold text-red-500 whitespace-nowrap hidden sm:block">
-                                <i class="fas fa-film mr-2"></i>Rạp Phim
-                            </h2>
-                            <div class="flex items-center space-x-2 shrink-0">
-                                <button onclick="window.switchCinemaServer('1')" id="btn-server-1" 
-                                        class="text-[10px] md:text-xs px-2 py-1 md:px-3 md:py-1.5 rounded-full font-bold transition bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-500/30 whitespace-nowrap">
-                                    <i class="fas fa-server mr-1"></i> VIP
-                                </button>
-                                <button onclick="window.switchCinemaServer('2')" id="btn-server-2" 
-                                        class="text-[10px] md:text-xs px-2 py-1 md:px-3 md:py-1.5 rounded-full font-bold transition bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white border border-gray-600 whitespace-nowrap">
-                                    <i class="fas fa-server mr-1"></i> #2
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="flex gap-2 w-auto justify-end items-center ml-auto">
-                            <button onclick="reloadCinema()" class="p-1.5 md:p-2 hover:bg-gray-700 rounded-full transition text-gray-400 hover:text-white" title="Tải lại Player">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                            <a id="cinema-open-link" href="https://motchillr.sh/" target="_blank" 
-                               class="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 rounded-full font-bold transition flex items-center shadow shadow-red-900/50 whitespace-nowrap">
-                                <i class="fas fa-external-link-alt md:mr-2"></i> <span class="hidden md:inline">Mở tab mới</span>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 relative bg-black w-full min-h-0">
-                        <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 z-0 pointer-events-none">
-                            <i class="fas fa-play-circle text-6xl mb-4 opacity-50"></i>
-                            <p class="text-sm">Chọn Server nếu phim không tải</p>
-                        </div>
-                        <iframe id="cinema-frame" 
-                                src="https://motchillr.sh/" 
-                                class="absolute inset-0 w-full h-full z-10 border-none bg-black"
-                                allowfullscreen 
-                                sandbox="allow-forms allow-scripts allow-same-origin allow-presentation">
-                        </iframe>
-                    </div>
-                </div>
-
-            </div> 
-        </main>
-    </div> 
-
-    <div id="modal-profile" class="hidden fixed inset-0 z-[70] flex items-center justify-center modal-overlay p-4">
-        <div class="bg-white rounded-xl w-full max-w-sm p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
-            <h3 class="text-xl font-bold mb-4">Chỉnh sửa hồ sơ</h3>
-            <div class="mb-4 text-center">
-                <img id="profile-preview-img" src="" class="w-20 h-20 rounded-full mx-auto mb-2 border">
             </div>
-            <div class="space-y-3">
-                <input type="text" id="profile-name-input" class="w-full border rounded p-2" placeholder="Tên hiển thị">
-                <input type="text" id="profile-avatar-input" class="w-full border rounded p-2" placeholder="Link ảnh Avatar" onchange="document.getElementById('profile-preview-img').src=this.value">
-            </div>
-            <div class="mt-6 flex justify-end space-x-2">
-                <button onclick="document.getElementById('modal-profile').classList.add('hidden')" class="px-4 py-2 text-gray-600">Hủy</button>
-                <button onclick="saveProfile()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Lưu</button>
-            </div>
+        </div>
+
+        <div class="text-center">
+            <p class="text-gray-600 text-sm">
+                Proudly developed by <span class="text-gray-400 font-semibold">Táo Bắc Việt Team</span> &copy; 2026
+            </p>
         </div>
     </div>
 
-    <div id="modal-create-group" class="hidden fixed inset-0 z-[70] flex items-center justify-center modal-overlay p-4">
-        <div class="bg-white rounded-xl w-full max-w-sm p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
-            <h3 class="text-xl font-bold mb-4 text-indigo-700">Tạo Nhóm Mới</h3>
-            <div class="space-y-3">
-                <input type="text" id="new-group-name" placeholder="Tên nhóm" class="w-full border rounded p-2">
-                <input type="password" id="new-group-pass" placeholder="Mật khẩu nhóm" class="w-full border rounded p-2">
-            </div>
-            <div class="mt-6 flex justify-end space-x-2">
-                <button onclick="document.getElementById('modal-create-group').classList.add('hidden')" class="px-4 py-2 text-gray-600">Hủy</button>
-                <button onclick="createGroup()" class="px-4 py-2 bg-indigo-600 text-white rounded font-bold">Tạo</button>
-            </div>
-        </div>
+    <!-- Success Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded-xl shadow-2xl transform translate-y-20 transition-transform duration-300 flex items-center gap-3 z-[100]">
+        <i class="fas fa-check-circle"></i>
+        <span>Đã sao chép địa chỉ Email!</span>
     </div>
 
-    <div id="modal-game-play" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black bg-opacity-95 p-2 md:p-4">
-        <div class="relative w-full max-w-2xl flex flex-col items-center h-full md:h-auto justify-center">
-            <div class="flex justify-between w-full text-white mb-2 px-2 shrink-0">
-                <span id="game-title-play" class="font-bold text-lg md:text-xl">Game</span>
-                <span id="game-score-play" class="font-mono text-yellow-400 text-lg md:text-xl">Score: 0</span>
-                <button onclick="closeGame()" class="text-gray-400 hover:text-white p-2"><i class="fas fa-times text-2xl"></i></button>
-            </div>
-            
-            <div id="game-canvas-container" class="bg-gray-800 rounded-lg w-full flex flex-col justify-center items-center relative overflow-hidden shadow-2xl border border-gray-700 flex-1 md:flex-none aspect-[4/5] md:aspect-auto md:min-h-[400px]">
-                </div>
-            
-            <div id="snake-mobile-controls" class="hidden md:hidden grid-cols-3 gap-2 mt-4 w-48 shrink-0 pb-4">
-                <div></div>
-                <button ontouchstart="handleMobileControl('ArrowUp')" class="bg-gray-700 text-white p-4 rounded-full active:bg-gray-500 shadow-lg"><i class="fas fa-arrow-up"></i></button>
-                <div></div>
-                <button ontouchstart="handleMobileControl('ArrowLeft')" class="bg-gray-700 text-white p-4 rounded-full active:bg-gray-500 shadow-lg"><i class="fas fa-arrow-left"></i></button>
-                <button ontouchstart="handleMobileControl('ArrowDown')" class="bg-gray-700 text-white p-4 rounded-full active:bg-gray-500 shadow-lg"><i class="fas fa-arrow-down"></i></button>
-                <button ontouchstart="handleMobileControl('ArrowRight')" class="bg-gray-700 text-white p-4 rounded-full active:bg-gray-500 shadow-lg"><i class="fas fa-arrow-right"></i></button>
-            </div>
-            
-            <div id="game-controls-hint" class="text-gray-400 text-sm mt-4 text-center hidden md:block">Sử dụng phím mũi tên để chơi</div>
-        </div>
-    </div>
-    
-    <div id="video-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black">
-        <div class="w-full h-full flex flex-col">
-            <div class="bg-gray-900 p-2 flex justify-between text-white items-center px-4 shrink-0 safe-area-pb">
-                <span id="video-title-player" class="font-bold truncate text-sm">Bài Học</span>
-                <button onclick="closeVideoModal()" class="text-2xl hover:text-red-500 p-2"><i class="fas fa-times"></i></button>
-            </div>
-
-            <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden min-h-0">
-                <div id="youtube-player" class="w-full h-full"></div>
-                <iframe id="generic-player" class="w-full h-full hidden" src="" frameborder="0" 
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen">
-                </iframe>
-            </div>
-
-            <div id="yt-controls" class="bg-gray-800 p-4 text-white flex flex-col gap-2 safe-area-pb shrink-0">
-                 <div class="flex justify-between text-xs md:text-sm">
-                    <span id="video-time">00:00</span>
-                    <span id="video-percent" class="text-green-400 font-bold">0%</span>
-                 </div>
-                 <div class="w-full bg-gray-600 h-2 rounded no-interaction relative cursor-not-allowed">
-                     <div id="video-bar" class="bg-blue-500 h-2 w-0 rounded transition-all duration-300"></div>
-                 </div>
-                 <p class="text-xs text-center text-red-400 mt-1"><i class="fas fa-lock"></i> Không thể tua video này.</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="embed-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-[90] flex flex-col justify-center items-center p-2">
-        <div class="w-full max-w-5xl bg-white rounded-t-lg flex justify-between items-center p-3 shrink-0">
-            <h3 id="embed-title" class="font-bold text-indigo-700 truncate text-sm md:text-base">Xem nội dung</h3>
-            <button onclick="closeEmbedModal()" class="text-gray-500 hover:text-red-500 text-lg px-2">
-                <i class="fas fa-times"></i> Đóng
-            </button>
-        </div>
-        
-        <div class="w-full max-w-5xl h-[80vh] md:h-[85vh] bg-white rounded-b-lg overflow-hidden relative">
-            <iframe id="embed-frame" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
-            <div id="embed-loading" class="absolute inset-0 flex items-center justify-center bg-gray-100 z-[-1]">
-                <p class="text-gray-500">Đang tải...</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-group-detail" class="hidden fixed inset-0 z-[70] flex items-center justify-center modal-overlay p-2 md:p-4">
-        <div class="bg-white rounded-xl w-full max-w-2xl p-4 md:p-6 shadow-2xl flex flex-col max-h-[90dvh]">
-            <div class="flex justify-between items-center mb-4 border-b pb-2 shrink-0">
-                <div>
-                    <h3 id="group-detail-name" class="text-lg md:text-xl font-bold text-indigo-700 truncate max-w-[200px] md:max-w-md">Tên Nhóm</h3>
-                    <p id="group-detail-id" class="text-xs text-gray-400 hidden"></p> 
-                </div>
-                <button onclick="closeGroupModal()" class="text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-
-            <div class="flex space-x-1 border-b mb-4 shrink-0">
-                <button onclick="switchGroupTab('members')" id="tab-grp-members" class="flex-1 py-2 font-bold border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 text-sm md:text-base">Thành Viên</button>
-                <button onclick="switchGroupTab('docs')" id="tab-grp-docs" class="flex-1 py-2 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 text-sm md:text-base">Tài Liệu</button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                
-                <div id="grp-tab-members" class="space-y-2">
-                    <div id="group-members-list"></div>
-                </div>
-
-                <div id="grp-tab-docs" class="hidden-section space-y-4">
-                    <div id="group-upload-area" class="hidden border-2 border-dashed border-indigo-300 rounded-lg p-4 bg-indigo-50 text-center">
-                        <p class="text-sm text-indigo-700 font-bold mb-2">Tải tài liệu lên nhóm</p>
-                        <div class="flex flex-col md:flex-row gap-2 justify-center items-center">
-                            <input type="file" id="group-file-input" class="text-xs md:text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            <button onclick="handleUploadGroupDoc()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 w-full md:w-auto"><i class="fas fa-cloud-upload-alt"></i> Tải lên</button>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-2">*Hỗ trợ PDF, Ảnh (Tối đa 2MB demo)</p>
-                    </div>
-
-                    <div id="group-docs-list" class="space-y-2">
-                        <p class="text-center text-gray-400 italic">Chưa có tài liệu nào.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div id="group-admin-actions" class="pt-4 border-t mt-4 flex flex-col md:flex-row justify-between items-center hidden shrink-0 gap-2">
-                <span class="text-xs text-gray-400"><i class="fas fa-shield-alt"></i> Khu vực quản trị viên</span>
-                <button onclick="handleDeleteGroup()" class="bg-red-100 text-red-600 px-4 py-2 rounded hover:bg-red-600 hover:text-white transition font-bold text-sm w-full md:w-auto">
-                    <i class="fas fa-trash"></i> Xóa Nhóm
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="music-widget" class="fixed bottom-4 left-4 right-4 md:right-auto md:w-80 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 transform transition-all duration-300 translate-y-[150%] opacity-0 safe-area-pb">
-        <div class="p-3 md:p-4 flex items-center space-x-3 border-b border-gray-100">
-            <div class="relative">
-                <img id="song-cover" 
-                     src="https://placehold.co/100x100/indigo/white?text=Music" 
-                     class="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover border-2 border-gray-200 shadow-md animate-spin-slow"
-                     style="animation-play-state: paused;">
-                
-                <div class="absolute inset-0 flex items-center justify-center">
-                    <div class="w-3 h-3 md:w-4 md:h-4 bg-white rounded-full border border-gray-300"></div>
-                </div>
-            </div>
-            
-            <div class="overflow-hidden flex-1">
-                <h4 id="song-title" class="font-bold text-gray-800 truncate text-sm">Chọn bài hát...</h4>
-                <p id="song-artist" class="text-xs text-gray-500 truncate">Music for Study</p>
-            </div>
-            
-            <button onclick="toggleMusicPlayer()" class="text-gray-400 hover:text-gray-600 p-2">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-
-        <div class="p-3 md:p-4 pt-2">
-            <div class="flex items-center space-x-2 mb-3">
-                <span id="curr-time" class="text-[10px] text-gray-400 w-8 text-right">0:00</span>
-                <input type="range" id="progress-bar" value="0" class="flex-1 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                <span id="dur-time" class="text-[10px] text-gray-400 w-8">0:00</span>
-            </div>
-
-            <div class="flex justify-center items-center space-x-6 text-gray-600">
-                <button onclick="prevSong()" class="hover:text-indigo-600 transition p-2">
-                    <i class="fas fa-step-backward"></i>
-                </button>
-                
-                <button onclick="playPauseMusic()" id="play-btn" class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 hover:scale-105 transition transform active:scale-95">
-                    <i class="fas fa-play ml-1"></i>
-                </button>
-                
-                <button onclick="nextSong()" class="hover:text-indigo-600 transition p-2">
-                    <i class="fas fa-step-forward"></i>
-                </button>
-            </div>
-        </div>
-
-        <div class="bg-gray-50 px-4 py-2 rounded-b-2xl max-h-32 overflow-y-auto custom-scrollbar border-t border-gray-100">
-            <ul id="playlist-ul" class="space-y-1"></ul>
-        </div>
-    </div>
-    
-    <div id="modal-payment-required" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm p-4 animate-fade-in">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-100 max-h-[90dvh] overflow-y-auto">
-            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 md:p-6 text-center">
-                <div class="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <i class="fas fa-crown text-2xl md:text-3xl text-yellow-500 animate-pulse"></i>
-                </div>
-                <h3 class="text-xl md:text-2xl font-bold text-white uppercase tracking-wider">Kích Hoạt Tài Khoản</h3>
-                <p class="text-indigo-100 text-xs md:text-sm mt-1">Hoàn tất thanh toán để tham gia hệ thống</p>
-            </div>
-
-            <div class="p-4 md:p-6 space-y-4">
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 md:p-4 rounded text-xs md:text-sm text-yellow-800">
-                    <p class="font-bold"><i class="fas fa-info-circle"></i> Lưu ý quan trọng:</p>
-                    <p>Tài khoản của bạn đang ở trạng thái <strong>CHỜ DUYỆT</strong>. Vui lòng chuyển khoản theo thông tin dưới đây để Admin kích hoạt.</p>
-                </div>
-
-                <div class="flex flex-col items-center justify-center py-2">
-                    <div class="relative group">
-                        <img id="payment-qr-img" 
-                             src="" 
-                             class="w-40 h-40 md:w-48 md:h-48 object-contain border-2 border-dashed border-gray-300 rounded-xl p-2 shadow-sm group-hover:border-indigo-500 transition-colors"
-                             alt="Mã QR Chuyển Khoản">
-                        <div class="absolute -bottom-2 -right-2 bg-blue-600 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded-full shadow">
-                            MB Bank
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">Quét mã bằng App Ngân hàng hoặc Camera</p>
-                </div>
-
-                <div class="space-y-2 md:space-y-3 bg-gray-50 p-3 md:p-4 rounded-xl border border-gray-100 text-sm">
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                        <span class="text-gray-500">Ngân hàng:</span>
-                        <span class="font-bold text-blue-700">MB Bank</span>
-                    </div>
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                        <span class="text-gray-500">Chủ tài khoản:</span>
-                        <span class="font-bold text-gray-800 uppercase">Nguyễn Vũ Tạo</span>
-                    </div>
-                    <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                        <span class="text-gray-500">Số tài khoản:</span>
-                        <div class="flex items-center">
-                            <span class="font-bold text-indigo-600 text-base md:text-lg mr-2">0344750735</span>
-                            <button onclick="navigator.clipboard.writeText('0344750735'); alert('Đã sao chép STK!')" class="text-gray-400 hover:text-indigo-600"><i class="far fa-copy"></i></button>
-                        </div>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-gray-500 mb-1">Nội dung chuyển khoản:</span>
-                        <div class="bg-indigo-100 text-indigo-800 font-mono font-bold p-2 rounded text-center border border-indigo-200 break-all text-xs md:text-sm" id="payment-content-display">
-                            EMAIL_CUA_BAN
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-4 bg-gray-50 border-t flex justify-between items-center gap-3 shrink-0">
-                <button onclick="document.getElementById('modal-payment-required').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 font-medium text-sm px-2">
-                    Để sau
-                </button>
-                <button onclick="confirmPaymentSent()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 md:px-6 md:py-3 rounded-xl font-bold shadow-lg hover:shadow-green-500/40 hover:-translate-y-0.5 transition w-full text-sm md:text-base">
-                    <i class="fas fa-check-circle mr-2"></i> Đã CK
-                </button>
-            </div>
-        </div>
-    </div>
-    
     <script>
-        function toggleMobileMenu() {
-            const sidebar = document.getElementById('main-sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            sidebar.classList.toggle('-translate-x-full');
-            if (overlay.classList.contains('hidden')) {
-                overlay.classList.remove('hidden');
-            } else {
-                overlay.classList.add('hidden');
+        // Target Date: 07/02/2026
+        const targetDate = new Date("February 7, 2026 00:00:00").getTime();
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = targetDate - now;
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("days").innerText = days.toString().padStart(2, '0');
+            document.getElementById("hours").innerText = hours.toString().padStart(2, '0');
+            document.getElementById("minutes").innerText = minutes.toString().padStart(2, '0');
+            document.getElementById("seconds").innerText = seconds.toString().padStart(2, '0');
+
+            if (distance < 0) {
+                clearInterval(timer);
+                document.getElementById("days").innerText = "00";
+                document.getElementById("hours").innerText = "00";
+                document.getElementById("minutes").innerText = "00";
+                document.getElementById("seconds").innerText = "00";
             }
         }
 
-        const originalNav = window.nav || function() {}; 
-        window.nav = function(viewId) {
-            const sidebar = document.getElementById('main-sidebar');
-            // Tự động đóng menu trên mobile khi chọn mục
-            if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
-                toggleMobileMenu();
-            }
-            // Gọi hàm nav thật trong script.js (đã được expose ra window)
-            if (typeof window.handleNavReal === 'function') {
-                window.handleNavReal(viewId);
-            } else {
-                // Fallback nếu script chưa load kịp
-                console.log("Navigating to:", viewId);
-                document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden-section'));
-                const target = document.getElementById('view-' + viewId);
-                if(target) target.classList.remove('hidden-section');
-            }
-        }
+        const timer = setInterval(updateCountdown, 1000);
+        updateCountdown();
 
-        function toggleDesktopSidebar() {
-            const sidebar = document.getElementById('main-sidebar');
-            const icon = document.getElementById('toggle-icon');
-            sidebar.classList.toggle('sidebar-collapsed');
-            if (sidebar.classList.contains('sidebar-collapsed')) {
-                icon.classList.remove('fa-chevron-left');
-                icon.classList.add('fa-chevron-right');
-            } else {
-                icon.classList.remove('fa-chevron-right');
-                icon.classList.add('fa-chevron-left');
-            }
+        function copyEmail() {
+            const email = "taobacvietteam@gmail.com";
+            const el = document.createElement('textarea');
+            el.value = email;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+
+            const toast = document.getElementById('toast');
+            toast.classList.remove('translate-y-20');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20');
+            }, 3000);
         }
     </script>
-    
-    <script type="module" src="script.js"></script>
 </body>
 </html>
