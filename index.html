@@ -3,204 +3,532 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông Báo Bảo Trì - Táo Bắc Việt Team</title>
+    <title>TBV Study - Hệ Thống Học Tập Thông Minh</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .hidden-section { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0f172a;
-            color: white;
-            overflow-x: hidden;
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-        }
-
-        .gradient-text {
-            background: linear-gradient(135deg, #60a5fa, #c084fc, #f472b6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .floating {
-            animation: floating 3s ease-in-out infinite;
-        }
-
-        @keyframes floating {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .countdown-box {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 16px;
-            min-width: 80px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-support {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            transition: all 0.3s ease;
-        }
+        #sidebar { transition: width 0.3s ease; }
+        .sidebar-collapsed { width: 80px !important; }
+        .sidebar-collapsed .link-text, .sidebar-collapsed .logo-text { display: none; }
         
-        .btn-support:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -10px rgba(59, 130, 246, 0.5);
-        }
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-    <!-- Background Gradient Orbs -->
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+<body class="bg-slate-50 text-slate-800">
 
-    <div class="max-w-4xl w-full z-10">
-        <div class="text-center mb-10">
-            <div class="inline-block p-4 bg-white/5 rounded-full mb-6 floating border border-white/10">
-                <i class="fas fa-hammer text-5xl text-blue-400"></i>
-            </div>
-            <h1 class="text-4xl md:text-6xl font-extrabold mb-4">
-                Đang <span class="gradient-text">Nâng Cấp</span>
-            </h1>
-            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
-                Vì lỗi nặng và khối lượng công việc lớn nên. 
-                Hẹn gặp lại bạn vào ngày <span class="text-white font-bold">20/02/2026</span>.
-            </p>
-        </div>
-
-        <!-- Countdown Timer -->
-        <div class="flex justify-center gap-4 mb-12 flex-wrap">
-            <div class="countdown-box">
-                <div id="days" class="text-3xl font-bold text-blue-400">00</div>
-                <div class="text-xs uppercase tracking-widest text-gray-500">Ngày</div>
-            </div>
-            <div class="countdown-box">
-                <div id="hours" class="text-3xl font-bold text-purple-400">00</div>
-                <div class="text-xs uppercase tracking-widest text-gray-500">Giờ</div>
-            </div>
-            <div class="countdown-box">
-                <div id="minutes" class="text-3xl font-bold text-pink-400">00</div>
-                <div class="text-xs uppercase tracking-widest text-gray-500">Phút</div>
-            </div>
-            <div class="countdown-box">
-                <div id="seconds" class="text-3xl font-bold text-orange-400">00</div>
-                <div class="text-xs uppercase tracking-widest text-gray-500">Giây</div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-            <!-- Updates Content -->
-            <div class="glass-card p-8 border-l-4 border-l-blue-500">
-                <h3 class="text-xl font-bold mb-4 flex items-center gap-3">
-                    <i class="fas fa-rocket text-blue-400"></i> Cập nhật mới sắp tới
-                </h3>
-                <ul class="space-y-3 text-gray-300">
-                    <li class="flex items-start gap-3">
-                        <i class="fas fa-bolt text-yellow-500 mt-1"></i>
-                        <span>Tối ưu hóa tốc độ phản hồi của Trợ lý AI.</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <i class="fas fa-file-signature text-purple-500 mt-1"></i>
-                        <span>Cập nhật bộ đề thi thử 2026 chuẩn cấu trúc mới.</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <i class="fas fa-shield-alt text-green-500 mt-1"></i>
-                        <span>Nâng cấp bảo mật tài khoản và dữ liệu học tập.</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <i class="fas fa-mobile-alt text-pink-500 mt-1"></i>
-                        <span>Cải thiện giao diện trên thiết bị di động.</span>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Support Area -->
-            <div class="glass-card p-8 flex flex-col justify-center text-center items-center">
-                <h3 class="text-xl font-bold mb-3">Bạn cần hỗ trợ?</h3>
-                <p class="text-gray-400 mb-6 italic">"Mọi thắc mắc vui lòng liên hệ taobacvietteam để được hỗ trợ tốt nhất."</p>
-                
-                <div class="w-full space-y-4">
-                    <button onclick="copyEmail()" class="w-full btn-support text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 group relative overflow-hidden">
-                        <i class="fas fa-envelope text-xl"></i>
-                        <span>Hỗ trợ: taobacvietteam</span>
-                    </button>
-                    
-                    <div class="text-sm text-gray-500 flex items-center justify-center gap-2">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Email: taobacvietteam@gmail.com</span>
+    <div class="flex h-screen w-full">
+        <aside id="sidebar" class="w-64 bg-white border-r flex flex-col shrink-0 shadow-sm z-50">
+            <div class="p-4 flex items-center justify-between border-b h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-indigo-200 shadow-lg">
+                        <i class="fas fa-graduation-cap text-xl"></i>
                     </div>
+                    <span class="font-bold text-xl logo-text text-indigo-600">TBV Study</span>
+                </div>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-indigo-600"><i class="fas fa-bars"></i></button>
+            </div>
+
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto custom-scroll">
+                <button onclick="handleNavReal('home')" class="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                    <i class="fas fa-home w-5"></i> <span class="link-text font-semibold">Trang chủ</span>
+                </button>
+                <button onclick="handleNavReal('subjects')" class="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                    <i class="fas fa-book w-5"></i> <span class="link-text font-semibold">Môn học</span>
+                </button>
+                <button onclick="handleNavReal('hsa')" class="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                    <i class="fas fa-star w-5"></i> <span class="link-text font-semibold">Luyện thi HSA</span>
+                </button>
+            </nav>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-w-0">
+            <div id="content-container" class="flex-1 overflow-y-auto p-4 md:p-8 custom-scroll">
+                
+                <div id="view-home" class="fade-in">
+                    <h1 class="text-3xl font-bold mb-6">Chào mừng quay trở lại!</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                            <i class="fas fa-sync text-blue-500 mb-2"></i>
+                            <h3 class="font-bold">Cập nhật mới</h3>
+                            <p class="text-sm text-slate-500">Dữ liệu được đồng bộ trực tiếp từ Cloud.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-subjects" class="hidden-section fade-in">
+                    <h2 class="text-2xl font-bold mb-6 italic text-slate-700">Thư viện bài giảng</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="subject-grid">
+                        <div onclick="openSubject('Toán')" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-500 hover:shadow-md cursor-pointer transition-all active:scale-95">
+                            <h3 class="font-bold text-lg">Toán Học</h3>
+                            <p class="text-xs text-slate-400 mt-2">Đại số & Giải tích</p>
+                        </div>
+                        <div onclick="openSubject('Lý')" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-purple-500 hover:shadow-md cursor-pointer transition-all active:scale-95">
+                            <h3 class="font-bold text-lg">Vật Lý</h3>
+                            <p class="text-xs text-slate-400 mt-2">Cơ - Nhiệt - Điện - Quang</p>
+                        </div>
+                        <div onclick="openSubject('Anh')" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-yellow-500 hover:shadow-md cursor-pointer transition-all active:scale-95">
+                            <h3 class="font-bold text-lg">Tiếng Anh</h3>
+                            <p class="text-xs text-slate-400 mt-2">Grammar & Vocabulary</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-subject-detail" class="hidden-section fade-in flex flex-col h-full">
+                    <div class="flex items-center gap-4 mb-6">
+                        <button onclick="handleNavReal('subjects')" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h2 id="detail-subject-title" class="text-2xl font-bold"></h2>
+                    </div>
+
+                    <div class="flex bg-slate-100 p-1 rounded-xl mb-6 w-fit">
+                        <button id="tab-subj-video" onclick="switchSubjectTab('video')" class="px-6 py-2 rounded-lg font-bold transition">Video</button>
+                        <button id="tab-subj-doc" onclick="switchSubjectTab('doc')" class="px-6 py-2 rounded-lg font-bold transition text-slate-500">Tài liệu</button>
+                        <button id="tab-subj-exam" onclick="switchSubjectTab('exam')" class="px-6 py-2 rounded-lg font-bold transition text-slate-500">Đề thi</button>
+                    </div>
+
+                    <div id="subj-content-video" class="space-y-3"></div>
+                    <div id="subj-content-doc" class="hidden-section space-y-3"></div>
+                    <div id="subj-content-exam" class="hidden-section space-y-3"></div>
+                </div>
+
+                <div id="view-hsa" class="hidden-section fade-in">
+                    <h2 class="text-2xl font-bold mb-4">Luyện thi ĐGNL (HSA)</h2>
+                    <button onclick="openSubject('HSA')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold">Vào kho tài liệu HSA</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="embed-modal" class="fixed inset-0 bg-black/80 z-[60] hidden flex flex-col p-4">
+        <div class="flex justify-between items-center text-white mb-4">
+            <h3 id="embed-title" class="font-bold truncate max-w-[70%]">Tên tài liệu</h3>
+            <button onclick="closeEmbedModal()" class="bg-white/20 hover:bg-red-500 w-10 h-10 rounded-full transition"><i class="fas fa-times"></i></button>
+        </div>
+        <iframe id="embed-frame" class="flex-1 w-full rounded-xl bg-white" src=""></iframe>
+    </div>
+
+    <div id="video-modal" class="fixed inset-0 bg-black/95 z-[70] hidden flex flex-col">
+        <div class="p-4 flex justify-between items-center">
+            <span class="text-white/50 text-sm italic">Đang phát bài giảng...</span>
+            <button onclick="closeVideoModal()" class="text-white hover:text-red-500 transition-all text-2xl"><i class="fas fa-circle-xmark"></i></button>
+        </div>
+        
+        <div class="flex-1 flex items-center justify-center relative">
+            <div id="youtube-player" class="w-full aspect-video max-w-5xl"></div>
+            <iframe id="generic-player" class="w-full h-full hidden" allow="autoplay"></iframe>
+        </div>
+
+        <div id="yt-controls" class="bg-black/50 p-6">
+            <div class="max-w-5xl mx-auto">
+                <div class="w-full bg-white/20 h-1.5 rounded-full overflow-hidden mb-2">
+                    <div id="video-bar" class="bg-indigo-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="flex justify-between text-white text-xs font-mono">
+                    <span id="video-time">0:00</span>
+                    <span id="video-percent">0%</span>
                 </div>
             </div>
         </div>
-
-        <div class="text-center">
-            <p class="text-gray-600 text-sm">
-                Proudly developed by <span class="text-gray-400 font-semibold">Táo Bắc Việt Team</span> &copy; 2026
-            </p>
-        </div>
-    </div>
-
-    <!-- Success Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded-xl shadow-2xl transform translate-y-20 transition-transform duration-300 flex items-center gap-3 z-[100]">
-        <i class="fas fa-check-circle"></i>
-        <span>Đã sao chép địa chỉ Email!</span>
     </div>
 
     <script>
-        // Target Date: 07/02/2026
-        const targetDate = new Date("February 7, 2026 00:00:00").getTime();
+        // Các biến toàn cục bổ sung để code của bạn chạy được
+        let player;
+        let videoTimer;
+        let currentVideoTitle = "";
 
-        function updateCountdown() {
-            const now = new Date().getTime();
-            const distance = targetDate - now;
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('sidebar-collapsed');
+        }
 
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        function toast(msg, type) {
+            console.log(`[TOAST - ${type}]: ${msg}`);
+            // Bạn có thể thêm thư viện Toast ở đây
+        }
 
-            document.getElementById("days").innerText = days.toString().padStart(2, '0');
-            document.getElementById("hours").innerText = hours.toString().padStart(2, '0');
-            document.getElementById("minutes").innerText = minutes.toString().padStart(2, '0');
-            document.getElementById("seconds").innerText = seconds.toString().padStart(2, '0');
+        function logActivity(action, title, detail) {
+            console.log(`[LOG]: ${action} | ${title} | ${detail}`);
+        }
 
-            if (distance < 0) {
-                clearInterval(timer);
-                document.getElementById("days").innerText = "00";
-                document.getElementById("hours").innerText = "00";
-                document.getElementById("minutes").innerText = "00";
-                document.getElementById("seconds").innerText = "00";
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1FBbveBD1RpIAN3-Tc5gE2Iy0UHgEFMWNfF7qrU8gjlM/export?format=csv';
+
+let mockSubjectData = {
+    'Toán': { videos: [], docs: [], exams: [] },
+    'Lý':   { videos: [], docs: [], exams: [] },
+    'Hóa':  { videos: [], docs: [], exams: [] },
+    'Văn':  { videos: [], docs: [], exams: [] },
+    'Anh':  { videos: [], docs: [], exams: [] },
+    'Sinh':   { videos: [], docs: [], exams: [] },
+    'Sử':     { videos: [], docs: [], exams: [] },
+    'Địa':    { videos: [], docs: [], exams: [] },
+    'GDKTPL': { videos: [], docs: [], exams: [] }, // Giáo dục Kinh tế và Pháp luật
+
+    // --- KỲ THI RIÊNG (ĐGNL / ĐGTD) ---
+    'HSA': { videos: [], docs: [], exams: [] }, // ĐHQG Hà Nội
+    'TSA': { videos: [], docs: [], exams: [] },  // ĐH Bách Khoa
+    'default': { videos: [], docs: [], exams: [] }
+};
+
+// Hàm làm sạch chuỗi
+function cleanText(txt) {
+    if (!txt) return '';
+    return txt.trim().replace(/^"|"$/g, '');
+}
+
+// Hàm sửa link Google Drive (FIX LỖI CSP BLOCKED)
+function fixDriveLink(url) {
+    if (!url) return '';
+    url = url.trim();
+    if (url.includes('drive.google.com')) {
+        if (url.includes('/preview')) return url;
+        return url.replace(/\/view.*/, '/preview')
+                  .replace(/\/edit.*/, '/preview')
+                  .replace(/\/open.*/, '/preview');
+    }
+    return url;
+}
+
+// Hàm phân loại Video (FIX LỖI 404 & EMBED)
+function processVideoLink(url) {
+    if (!url) return { type: 'other', src: '' };
+    url = url.trim();
+
+    // 1. ID YouTube (11 ký tự)
+    const ytIdRegex = /^[a-zA-Z0-9_-]{11}$/;
+    if (ytIdRegex.test(url)) return { type: 'youtube', src: url };
+
+    // 2. Link YouTube
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = url.match(regExp);
+        const id = (match && match[2].length === 11) ? match[2] : null;
+        return { type: 'youtube', src: id || url };
+    }
+
+    // 3. Facebook
+    if (url.includes('facebook.com') || url.includes('fb.watch')) {
+        const embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&t=0`;
+        return { type: 'facebook', src: embedUrl };
+    }
+
+   // 4. TikTok (NÂNG CẤP)
+    if (url.includes('tiktok.com')) {
+        // Regex tìm ID: Tìm chuỗi số dài sau /video/ hoặc /v/
+        // Hỗ trợ link dạng: tiktok.com/@user/video/723456... hoặc tiktok.com/v/723456...
+        const idMatch = url.match(/(?:video|v)\/([0-9]+)/);
+        
+        if (idMatch && idMatch[1]) {
+            // Dùng link embed v2 chuẩn của TikTok + ngôn ngữ tiếng Việt
+            return { type: 'tiktok', src: `https://www.tiktok.com/embed/v2/${idMatch[1]}?lang=vi-VN` };
+        }
+        
+        // Nếu không lấy được ID (ví dụ link rút gọn vt.tiktok.com), trả về link gốc (có thể lỗi nhưng đỡ hơn 404)
+        console.warn("Không lấy được ID TikTok, dùng link gốc:", url);
+        return { type: 'tiktok', src: url };
+    }
+
+    return { type: 'other', src: url };
+}
+window.handleNavReal = (viewId) => {
+    // 1. Ẩn tất cả các màn hình (view)
+    document.querySelectorAll('#content-container > div').forEach(d => d.classList.add('hidden-section'));
+    
+    // 2. Hiện màn hình được chọn
+    if (viewId === 'ai-chat') {
+        document.getElementById('view-ai-chat').classList.remove('hidden-section');
+    } else if (viewId === 'hsa') {
+        document.getElementById('view-hsa').classList.remove('hidden-section');
+    } else {
+        const target = document.getElementById(`view-${viewId}`);
+        if(target) target.classList.remove('hidden-section');
+    }
+    // 4. Reset Chat title nếu cần
+    if (viewId === 'chat') {
+        if (!currentChatTarget) switchChatTab('global');
+    }
+};
+async function loadDataFromSheet() {
+    try {
+        console.log("Đang tải dữ liệu từ Sheet...");
+        const response = await fetch(GOOGLE_SHEET_CSV_URL);
+        const text = await response.text();
+        const rows = text.split('\n').slice(1);
+
+        // Reset data
+        mockSubjectData = {
+            'Toán': { videos: [], docs: [], exams: [] },
+            'Lý':   { videos: [], docs: [], exams: [] },
+            'Hóa':  { videos: [], docs: [], exams: [] },
+            'Văn':  { videos: [], docs: [], exams: [] },
+            'Anh':  { videos: [], docs: [], exams: [] },
+            'HSA':  { videos: [], docs: [], exams: [] },
+            'TSA':  { videos: [], docs: [], exams: [] },
+            'default': { videos: [], docs: [], exams: [] }
+        };
+
+        rows.forEach(row => {
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            if (cols.length < 1) return;
+
+            const subjectName = cleanText(cols[0]); 
+            if (!subjectName) return; 
+            const target = mockSubjectData[subjectName] ? subjectName : 'default';
+
+            // Xử lý Video
+            const vidName = cleanText(cols[1]);
+            const vidRaw = cleanText(cols[2]);
+            if (vidName && vidRaw) {
+                const vidObj = processVideoLink(vidRaw);
+                mockSubjectData[target].videos.push({ t: vidName, data: vidObj });
+            }
+
+            // Xử lý Tài liệu
+            const docName = cleanText(cols[3]);
+            const docLink = fixDriveLink(cleanText(cols[4]));
+            if (docName && docLink) mockSubjectData[target].docs.push({ t: docName, url: docLink });
+
+            // Xử lý Đề thi
+            const examName = cleanText(cols[5]);
+            const examLink = fixDriveLink(cleanText(cols[6]));
+            if (examName && examLink) mockSubjectData[target].exams.push({ t: examName, url: examLink });
+        });
+
+        if(typeof toast === 'function') toast('Dữ liệu đã cập nhật!', 'success');
+        console.log("Data Loaded:", mockSubjectData);
+
+    } catch (error) { console.error("Lỗi tải data:", error); }
+}
+
+// Gọi hàm tải ngay lập tức
+loadDataFromSheet();
+
+
+// ==========================================
+// --- 2. GIAO DIỆN HIỂN THỊ (OPEN SUBJECT) ---
+// ==========================================
+
+window.openSubject = (subj) => {
+    const data = mockSubjectData[subj] || mockSubjectData['default'];
+    
+    // Cập nhật tiêu đề
+    const titleEl = document.getElementById('detail-subject-title');
+    if(titleEl) titleEl.innerText = `Môn ${subj}`;
+
+    // --- RENDER VIDEO ---
+    const videoContainer = document.getElementById('subj-content-video');
+    if (videoContainer) {
+        if (data.videos.length > 0) {
+            videoContainer.innerHTML = data.videos.map((v, i) => {
+                const type = v.data ? v.data.type : 'youtube';
+                const src = v.data ? v.data.src : v.id; // Fallback cho data cũ
+                
+                let icon = '<i class="fas fa-play"></i>';
+                let colorClass = 'bg-red-100 text-red-600';
+                
+                if (type === 'facebook') { icon = '<i class="fab fa-facebook-f"></i>'; colorClass = 'bg-blue-100 text-blue-600'; }
+                else if (type === 'tiktok') { icon = '<i class="fab fa-tiktok"></i>'; colorClass = 'bg-gray-900 text-white'; }
+
+                return `
+                <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center transform hover:scale-[1.01] transition border border-gray-100">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="${colorClass} w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">${icon}</div>
+                        <div class="flex flex-col overflow-hidden">
+                            <span class="font-bold text-sm text-gray-700 truncate">${v.t}</span>
+                            <span class="text-[10px] text-gray-400 uppercase tracking-wider">${type}</span>
+                        </div>
+                    </div>
+                    <button onclick="playUniversalVideo('${type}', '${src}', '${v.t.replace(/'/g, "\\'")}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 shadow active:scale-95 transition">Xem</button>
+                </div>`;
+            }).join('');
+        } else {
+            videoContainer.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-video text-4xl mb-2"></i><p>Chưa có video.</p></div>';
+        }
+    }
+
+    // --- RENDER TÀI LIỆU ---
+    const docContainer = document.getElementById('subj-content-doc');
+    if (docContainer) {
+        docContainer.innerHTML = data.docs.length > 0 ? data.docs.map(d => `
+            <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-blue-500 hover:shadow-md transition cursor-pointer" onclick="openEmbedModal('${d.url}', '${d.t}')">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <i class="fas fa-file-pdf text-blue-500 text-xl"></i>
+                    <span class="font-bold text-sm truncate text-gray-700">${d.t}</span>
+                </div>
+                <button class="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded text-xs font-bold"><i class="fas fa-eye"></i> Xem</button>
+            </div>
+        `).join('') : '<div class="text-center py-10 text-gray-400"><i class="fas fa-folder-open text-4xl mb-2"></i><p>Chưa có tài liệu.</p></div>';
+    }
+
+    // --- RENDER ĐỀ THI ---
+    const examContainer = document.getElementById('subj-content-exam');
+    if (examContainer) {
+        examContainer.innerHTML = data.exams.length > 0 ? data.exams.map(e => `
+            <div class="bg-white p-4 mb-2 rounded shadow flex justify-between items-center border-l-4 border-purple-500 hover:shadow-md transition cursor-pointer" onclick="openEmbedModal('${e.url}', '${e.t}')">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <i class="fas fa-edit text-purple-500 text-xl"></i>
+                    <span class="font-bold text-sm truncate text-gray-700">${e.t}</span>
+                </div>
+                <button class="text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded text-xs font-bold"><i class="fas fa-pen"></i> Làm</button>
+            </div>
+        `).join('') : '<div class="text-center py-10 text-gray-400"><i class="fas fa-scroll text-4xl mb-2"></i><p>Chưa có đề thi.</p></div>';
+    }
+
+    if(typeof switchSubjectTab === 'function') switchSubjectTab('video');
+    if(typeof window.handleNavReal === 'function') window.handleNavReal('subject-detail');
+};
+
+
+// ==========================================
+// --- 3. VIDEO PLAYER & MODAL UTILS ---
+// ==========================================
+
+// Hàm chuyển Tab
+window.switchSubjectTab = (tab) => {
+    ['video', 'doc', 'exam'].forEach(t => {
+        const btn = document.getElementById(`tab-subj-${t}`);
+        const content = document.getElementById(`subj-content-${t}`);
+        if(content && btn) {
+            if(t === tab) { 
+                btn.className = "flex-1 py-3 font-bold border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 transition min-w-[100px] whitespace-nowrap"; 
+                content.classList.remove('hidden-section'); 
+            } else { 
+                btn.className = "flex-1 py-3 font-bold text-gray-500 hover:text-indigo-600 hover:bg-gray-50 transition min-w-[100px] whitespace-nowrap"; 
+                content.classList.add('hidden-section'); 
             }
         }
+    });
+};
 
-        const timer = setInterval(updateCountdown, 1000);
-        updateCountdown();
+window.openEmbedModal = (url, title) => {
+    document.getElementById('embed-title').innerText = title;
+    document.getElementById('embed-frame').src = url;
+    document.getElementById('embed-modal').classList.remove('hidden');
 
-        function copyEmail() {
-            const email = "taobacvietteam@gmail.com";
-            const el = document.createElement('textarea');
-            el.value = email;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
+    // --- MỚI THÊM ---
+    // Phân biệt là Đề thi hay Tài liệu dựa vào context hoặc URL
+    // Ở đây ta gọi chung là "TÀI LIỆU/ĐỀ"
+    logActivity('XEM TÀI LIỆU', title, 'Đã mở xem/làm bài');
+};
+window.closeEmbedModal = () => {
+    document.getElementById('embed-modal').classList.add('hidden');
+    document.getElementById('embed-frame').src = '';
+};
 
-            const toast = document.getElementById('toast');
-            toast.classList.remove('translate-y-20');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20');
-            }, 3000);
+// Hàm phát Video Đa Năng (MỚI)
+window.playUniversalVideo = (type, src) => {
+    const modal = document.getElementById('video-modal');
+    const ytContainer = document.getElementById('youtube-player');
+    const genericFrame = document.getElementById('generic-player');
+    const ytControls = document.getElementById('yt-controls');
+
+    if(!modal) return;
+    modal.classList.remove('hidden');
+
+    // Reset
+    if (genericFrame) genericFrame.src = ''; 
+    if (player && typeof player.stopVideo === 'function') player.stopVideo();
+
+    if (type === 'youtube') {
+        // --- CHẾ ĐỘ YOUTUBE ---
+        if(ytContainer) ytContainer.classList.remove('hidden');
+        if(genericFrame) genericFrame.classList.add('hidden');
+        if(ytControls) ytControls.classList.remove('hidden');
+
+        if (player) {
+            player.loadVideoById(src);
+        } else {
+            if (window.YT && window.YT.Player) {
+                player = new YT.Player('youtube-player', {
+                    height: '100%', width: '100%', videoId: src,
+                    playerVars: { 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0 },
+                    events: { 'onStateChange': onPlayerStateChange }
+                });
+            }
         }
-    </script>
-</body>
-</html>
+    } else {
+        // --- CHẾ ĐỘ FACEBOOK / TIKTOK ---
+        if(ytContainer) ytContainer.classList.add('hidden');
+        if(ytControls) ytControls.classList.add('hidden');
+        
+        if(genericFrame) {
+            genericFrame.classList.remove('hidden');
+            if (src && src.includes('http')) {
+                genericFrame.src = src;
+            } else {
+                console.warn("Link video iframe không hợp lệ:", src);
+            }
+        }
+    }
+};
 
+// Hàm cầu nối cho code cũ (CHỐNG LỖI NOT DEFINED)
+window.playVideo = (id) => {
+    console.log("Redirecting legacy playVideo call...");
+    window.playUniversalVideo('youtube', id);
+};
+
+window.closeVideoModal = () => {
+    document.getElementById('video-modal').classList.add('hidden');
+    
+    // --- MỚI THÊM: Tính % và Ghi Log ---
+    if (player && typeof player.getDuration === 'function' && typeof player.getCurrentTime === 'function') {
+        const dur = player.getDuration();
+        const cur = player.getCurrentTime();
+        if (dur > 0) {
+            const percent = Math.round((cur / dur) * 100);
+            // Chỉ log nếu xem > 5% để tránh spam
+            if (percent > 5) {
+                logActivity('XEM VIDEO', currentVideoTitle, `Đã xem: ${percent}%`);
+            }
+        }
+    } else {
+        // Trường hợp video TikTok/Facebook (không lấy được API time)
+        logActivity('XEM VIDEO', currentVideoTitle, 'Đã mở xem (Embed)');
+    }
+    // ------------------------------------
+
+    if(player && typeof player.stopVideo === 'function') player.stopVideo();
+    
+    const genericFrame = document.getElementById('generic-player');
+    if(genericFrame) genericFrame.src = '';
+    
+    if(videoTimer) clearInterval(videoTimer);
+};
+
+// Sự kiện Player Youtube
+function onPlayerStateChange(event) { 
+    if (event.data == YT.PlayerState.PLAYING) videoTimer = setInterval(strictVideoLoop, 1000); 
+    else clearInterval(videoTimer); 
+}
+
+function strictVideoLoop() { 
+    if(!player || !player.getDuration) return; 
+    const cur = player.getCurrentTime(), dur = player.getDuration();
+    if(dur > 0) {
+        const per = (cur/dur)*100; 
+        const bar = document.getElementById('video-bar');
+        const txtPer = document.getElementById('video-percent');
+        const txtTime = document.getElementById('video-time');
+        
+        if(bar) bar.style.width = per + '%'; 
+        if(txtPer) txtPer.innerText = Math.round(per) + '%'; 
+        
+        const m = Math.floor(cur/60), s = Math.floor(cur%60); 
+        if(txtTime) txtTime.innerText = `${m}:${s<10?'0'+s:s}`; 
+    }
+    if (player.isMuted()) player.unMute(); 
+}
+    </script>
+    
+    </body>
+</html>
